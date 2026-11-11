@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Essential Kit Figma</title>
+  <desc id="desc">Kit de plugins para produção gráfica no Figma</desc>
+  <rect width="1200" height="630" rx="36" fill="#0b0d12"/>
+  <circle cx="1030" cy="120" r="180" fill="#1d63ff" opacity=".22"/>
+  <circle cx="1100" cy="510" r="260" fill="#8b5cf6" opacity=".18"/>
+  <g transform="translate(100 125)">
+    <rect width="120" height="120" rx="28" fill="#f24e1e"/><rect x="0" y="140" width="120" height="120" rx="28" fill="#ff7262"/><rect x="140" width="120" height="120" rx="28" fill="#a259ff"/><rect x="140" y="140" width="120" height="120" rx="28" fill="#1abcfe"/><circle cx="60" cy="340" r="60" fill="#0acf83"/>
+  </g>
+  <text x="100" y="480" fill="#fff" font-family="Arial, sans-serif" font-size="58" font-weight="700">Essential Kit Figma</text>
+  <text x="104" y="535" fill="#aeb7c8" font-family="Arial, sans-serif" font-size="25">Bleed Pro · FigAI · Remove BG · Exportação</text>
+</svg>
