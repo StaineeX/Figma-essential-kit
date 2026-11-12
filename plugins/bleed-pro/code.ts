@@ -177,6 +177,13 @@ async function prepare(source:FrameNode,config:Config):Promise<{node:FrameNode;w
   print.setPluginData(KIND,'1')
   print.setPluginData(OWN,source.id)
   print.setPluginData('bleedpro.config',JSON.stringify(config))
+  // "API" entre plugins: shared plugin data é lido por qualquer plugin
+  // (o Print Exporter Pro usa isto para exportar a cópia como está).
+  print.setSharedPluginData('printkit','sheet',JSON.stringify({
+    version:1,source:'bleed-pro',ppi:config.basePpi,
+    trim:{x:slug+b.left,y:slug+b.top,width:source.width,height:source.height},
+    bleed:b,slug,guides:GUIDE_NAME,
+  }))
   print.setPluginData('bleedpro.geometry',JSON.stringify({sourceWidth:source.width,sourceHeight:source.height,bleed:b,margin:m,slug,dpi:config.dpi,basePpi:config.basePpi}))
   let warning=''
   try {
@@ -184,17 +191,19 @@ async function prepare(source:FrameNode,config:Config):Promise<{node:FrameNode;w
     // recorta mais no corte; quem recorta é uma moldura no limite da sangria.
     const clip=figma.createFrame()
     print.appendChild(clip)
+    // Fundo vai até a borda da folha (sangria + área das marcas), igual ao
+    // PDF de referência; as marcas de corte ficam por cima.
     clip.name='SANGRIA • RECORTE'
-    clip.resize(source.width+b.left+b.right,source.height+b.top+b.bottom)
-    clip.x=slug;clip.y=slug;clip.fills=[];clip.clipsContent=true
+    clip.resize(sheetW,sheetH)
+    clip.x=0;clip.y=0;clip.fills=[];clip.clipsContent=true
+    const full:Sides={top:b.top+slug,right:b.right+slug,bottom:b.bottom+slug,left:b.left+slug}
     const art=source.clone()
     clip.appendChild(art)
     art.name='ARTE ORIGINAL • CÓPIA EDITÁVEL'
-    art.x=b.left
-    art.y=b.top
+    art.x=full.left
+    art.y=full.top
     art.clipsContent=false
-    // Fundo estendido fica dentro da moldura (atrás da arte), recortado na sangria.
-    warning=await addEdge(clip,source,0,b)
+    warning=await addEdge(clip,source,0,full)
     if(config.marks) addCropMarks(print,slug,b,source.width,source.height)
     addGuides(print,source.width,source.height,slug,b,m)
     print.setPluginData('bleedpro.warning',warning)

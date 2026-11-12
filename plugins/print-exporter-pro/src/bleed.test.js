@@ -63,10 +63,10 @@ for (const [label, settings, w, h, expectW, expectH] of [
 
     const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
     assert.ok(bg, 'fundo estendido existe');
-    close(bg.x, extra, 'fundo começa na linha da sangria (x)');
-    close(bg.y, extra, 'fundo começa na linha da sangria (y)');
-    close(bg.width, expectW + 2 * bleed, 'fundo cobre largura + 2 sangrias');
-    close(bg.height, expectH + 2 * bleed, 'fundo cobre altura + 2 sangrias');
+    close(bg.x, 0, 'fundo começa na borda da folha (x)');
+    close(bg.y, 0, 'fundo começa na borda da folha (y)');
+    close(bg.width, sheet().width, 'fundo cobre a folha inteira (largura)');
+    close(bg.height, sheet().height, 'fundo cobre a folha inteira (altura)');
     assert.deepEqual(bg.fills[0].color, { r: 0, g: 0.5, b: 1 }, 'fundo usa a cor da prancheta');
 
     const art = layers.find((l) => !l.name);
@@ -91,7 +91,7 @@ for (const [label, settings, w, h, expectW, expectH] of [
   });
 }
 
-test('fundo em imagem do frame também é estendido até a sangria', async () => {
+test('fundo em imagem do frame também vai até a borda da folha', async () => {
   const { layers, flatten } = mockFigma();
   const image = { type: 'IMAGE', imageHash: 'abc', scaleMode: 'FILL' };
   try {
@@ -101,7 +101,7 @@ test('fundo em imagem do frame também é estendido até a sangria', async () =>
   const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
   assert.ok(bg, 'fundo estendido existe');
   assert.deepEqual(bg.fills, [image]);
-  close(bg.width, 210 * MM + 10 * MM, 'A4 + 5 mm de cada lado');
+  close(bg.width, 210 * MM + 2 * (5 + 4.525) * MM, 'A4 + sangria + área das marcas');
 });
 
 test('sem cor de fundo, estende a camada mais de baixo cobrindo toda a sangria', async () => {
@@ -117,12 +117,12 @@ test('sem cor de fundo, estende a camada mais de baixo cobrindo toda a sangria',
   const extra = 4.525 * MM;
   const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
   assert.ok(bg, 'fundo estendido existe');
-  assert.ok(bg.x <= extra + 0.01 && bg.y <= extra + 0.01, 'cobre o canto superior esquerdo da sangria');
+  assert.ok(bg.x <= 0.01 && bg.y <= 0.01, 'cobre o canto da folha');
   assert.ok(bg.x + bg.width >= extra + 610 * 0.75 + 2 * bleed - 0.01, 'cobre a sangria direita');
   assert.ok(bg.y + bg.height >= extra + 845 * 0.75 + 2 * bleed - 0.01, 'cobre a sangria inferior');
 });
 
-test('elementos que passam da borda entram na sangria; recorte fica no limite da sangria', async () => {
+test('elementos que passam da borda vão até a borda da folha', async () => {
   const { layers, sheet, flatten } = mockFigma();
   try {
     await makePrintPdf(frame(610, 845), normalizeSettings({ pageSize: 'frame', bleed: 5, cropMarks: true }));
@@ -132,8 +132,8 @@ test('elementos que passam da borda entram na sangria; recorte fica no limite da
   const extra = 4.525 * MM;
   const clip = layers.find((l) => l.name === 'Sangria');
   assert.equal(clip.clipsContent, true, 'moldura recorta');
-  close(clip.x, extra, 'moldura começa na linha da sangria');
-  close(clip.width, 610 * 0.75 + 2 * bleed, 'moldura = tamanho final + 2 sangrias');
+  close(clip.x, 0, 'moldura começa na borda da folha');
+  close(clip.width, sheet().width, 'moldura = folha inteira');
   const art = layers.find((l) => !l.name);
   assert.equal(art.parent, clip, 'arte dentro da moldura');
   assert.equal(art.clipsContent, false, 'arte não recorta mais no corte');
@@ -153,4 +153,19 @@ test('cópia do Bleed Pro é exportada como está, sem guias e na medida certa',
   assert.equal(calls[0].guidesVisible, false, 'guias escondidas na exportação');
   close(calls[0].options.constraint.value, 300 / 96, '300 dpi');
   assert.equal(guides.visible, true, 'guias voltam depois');
+});
+
+test('API printkit: lê ppi e nome das guias gravados pelo Bleed Pro', async () => {
+  const guides = { name: 'GUIAS', visible: true };
+  const calls = [];
+  const sheetData = { version: 1, source: 'bleed-pro', ppi: 72, guides: 'GUIAS' };
+  const copy = {
+    type: 'FRAME', width: 720, height: 360, children: [guides],
+    getSharedPluginData: (ns, key) => (ns === 'printkit' && key === 'sheet' ? JSON.stringify(sheetData) : ''),
+    exportAsync(options) { calls.push(guides.visible); return new Uint8Array([1]); },
+  };
+  const result = await makePrintPdf(copy, normalizeSettings({}));
+  close(result.widthPt, 720, 'ppi 72 do Bleed Pro: 720 px = 720 pt');
+  assert.deepEqual(calls, [false], 'guias nomeadas pela API escondidas');
+  assert.equal(guides.visible, true);
 });

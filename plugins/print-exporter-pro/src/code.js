@@ -197,25 +197,42 @@ async function exportSheet(printFrame, geometry, settings) {
 // marcas. Exporta como está, sem as guias, convertendo 96 px/pol para pt.
 const BLEED_PRO_GUIDES = 'SANGRIA • NÃO EDITAR';
 
+// "API" entre plugins: o Bleed Pro grava em shared plugin data ('printkit',
+// 'sheet') as medidas da cópia (ppi, corte, sangria, guias).
+function readPrintkitSheet(node) {
+  try {
+    const raw = node && typeof node.getSharedPluginData === 'function' ? node.getSharedPluginData('printkit', 'sheet') : '';
+    const data = raw ? JSON.parse(raw) : null;
+    return data && data.version === 1 && Number(data.ppi) > 0 ? data : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function isBleedProCopy(node) {
+  if (readPrintkitSheet(node)) return true;
+  // Cópias antigas, sem os dados compartilhados: reconhece pela camada de guias.
   return Boolean(node && node.type === 'FRAME' && Array.isArray(node.children)
     && node.children.some((child) => child.name === BLEED_PRO_GUIDES));
 }
 
 async function exportBleedProCopy(node, settings) {
-  const guides = node.children.filter((child) => child.name === BLEED_PRO_GUIDES && child.visible !== false);
+  const sheet = readPrintkitSheet(node);
+  const guidesName = (sheet && sheet.guides) || BLEED_PRO_GUIDES;
+  const pxToPt = sheet ? 72 / Number(sheet.ppi) : FIGMA_PX_TO_PT;
+  const guides = node.children.filter((child) => child.name === guidesName && child.visible !== false);
   guides.forEach((guide) => { guide.visible = false; });
   try {
-    const widthPt = Number(node.width) * FIGMA_PX_TO_PT;
-    const heightPt = Number(node.height) * FIGMA_PX_TO_PT;
+    const widthPt = Number(node.width) * pxToPt;
+    const heightPt = Number(node.height) * pxToPt;
     if (settings.quality === 'raster') {
-      const scale = rasterScale(widthPt, heightPt, settings.dpi) * FIGMA_PX_TO_PT;
+      const scale = rasterScale(widthPt, heightPt, settings.dpi) * pxToPt;
       const bytes = await node.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
       return { raster: true, bytes, widthPt, heightPt };
     }
     const copy = node.clone();
     try {
-      copy.rescale(FIGMA_PX_TO_PT);
+      copy.rescale(pxToPt);
       return await copy.exportAsync({ format: 'PDF' });
     } finally {
       copy.remove();
@@ -258,18 +275,19 @@ async function makePrintPdf(node, settings) {
     printFrame.strokes = [];
     printFrame.clipsContent = false;
 
-    // Moldura no limite da sangria: recorta fundo e arte ali, não no corte, para
-    // elementos que passam da borda da prancheta entrarem na sangria.
-    const bleedPt = geometry.bleedPt * scale;
+    // Moldura do tamanho da folha: fundo e elementos que passam da borda da
+    // prancheta vão até a borda da folha (sangria + área das marcas), igual ao
+    // PDF de referência. As marcas de corte ficam por cima.
+    const marginPt = geometry.marginPt * scale;
     clip = figma.createFrame();
     printFrame.appendChild(clip);
     clip.name = 'Sangria';
-    clip.resize(geometry.widthPt * scale + 2 * bleedPt, geometry.heightPt * scale + 2 * bleedPt);
-    clip.x = (geometry.marginPt - geometry.bleedPt) * scale;
-    clip.y = (geometry.marginPt - geometry.bleedPt) * scale;
+    clip.resize(geometry.pageWidthPt * scale, geometry.pageHeightPt * scale);
+    clip.x = 0;
+    clip.y = 0;
     clip.fills = [];
     clip.clipsContent = true;
-    const inClip = { ...geometry, marginPt: geometry.bleedPt };
+    const inClip = { ...geometry, bleedPt: geometry.marginPt };
 
     // O fundo é a primeira camada, por trás do conteúdo clonado.
     if (settings.bleed > 0) {
@@ -279,8 +297,8 @@ async function makePrintPdf(node, settings) {
     artwork = node.clone();
     if (geometry.contentScale !== 1) artwork.rescale(geometry.contentScale);
     clip.appendChild(artwork);
-    artwork.x = bleedPt;
-    artwork.y = bleedPt;
+    artwork.x = marginPt;
+    artwork.y = marginPt;
     artwork.rotation = 0;
     artwork.clipsContent = false; // FRAME, COMPONENT e INSTANCE têm clipsContent
 
