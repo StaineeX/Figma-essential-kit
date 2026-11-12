@@ -361,6 +361,7 @@
               </div>
             </div>
             <div class="toggle-row" style="margin-top: 10px"><div class="toggle-copy"><strong>Cor fora da sangria</strong><span>área das marcas · padrão branco</span></div><input id="slugColor" type="color" value="#ffffff" aria-label="Cor fora da sangria" /></div>
+            <div class="toggle-row" style="margin-top: 10px"><div class="toggle-copy"><strong>Juntar seleção em 1 página</strong><span>folder: capa-verso + capa-frente lado a lado</span></div><label class="switch" aria-label="Juntar seleção em 1 página"><input id="combine" type="checkbox" /><span class="switch-track"></span></label></div>
             <p class="hint">O documento original permanece intacto; as opções entram no resumo de saída.</p>
           </div>
         </div>
@@ -429,6 +430,7 @@
           bleed: $('#bleed').value,
           cropMarks: $('#cropMarks').checked,
           slugColor: $('#slugColor').value || '#ffffff',
+          combine: $('#combine').checked,
         };
       }
 
@@ -444,6 +446,7 @@
         $('#bleed').value = state.settings.bleed ?? 0;
         $('#cropMarks').checked = Boolean(state.settings.cropMarks);
         $('#slugColor').value = state.settings.slugColor || '#ffffff';
+        $('#combine').checked = Boolean(state.settings.combine);
         $$('.preset').forEach((button) => { button.dataset.active = String(button.dataset.preset === state.settings.preset); });
       }
 
@@ -555,7 +558,7 @@
         renderSummary();
       }));
       $$('.preset').forEach((button) => button.addEventListener('click', () => applyPreset(button.dataset.preset)));
-      ['#pageSize', '#quality', '#slugColor', '#customWidth', '#customHeight', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
+      ['#pageSize', '#quality', '#slugColor', '#combine', '#customWidth', '#customHeight', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
         state.settings = { ...readSettings(), preset: 'custom' };
         saveSettings();
         clearMessage();

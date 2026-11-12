@@ -290,3 +290,33 @@ test('cor fora da sangria: branco por padrão, pode trocar', async () => {
     assert.deepEqual(sheet().fills[0].color, expected);
   }
 });
+
+test('folder: junta 2 pranchetas lado a lado em 1 página e exporta 1 PDF na medida das duas', async () => {
+  const { combineFrames } = require('./code.js');
+  const { layers, sheet } = mockFigma();
+  const pxPerMm = 96 / 25.4;
+  const panel = (name, x) => ({
+    name, width: 99 * pxPerMm, height: 210 * pxPerMm, absoluteTransform: [[1, 0, x], [0, 1, 500]],
+    clone() { return { name, width: this.width, height: this.height, remove() {} }; },
+  });
+  const verso = panel('Capa-verso', 1000);
+  const frente = panel('Capa-frente', 1000 + 99 * pxPerMm);
+  let spread;
+  let result;
+  try {
+    spread = combineFrames([frente, verso]);
+    spread.clone = () => ({ width: spread.width, height: spread.height, children: [], rescale(s) { this.width *= s; this.height *= s; }, remove() {} });
+    spread.type = 'FRAME';
+    spread.rescale = () => {};
+    result = await makePrintPdf(spread, normalizeSettings({ bleed: 5, cropMarks: true }));
+  } finally { delete global.figma; }
+  assert.equal(spread.name, 'Capa-verso + Capa-frente', 'ordem da esquerda para a direita');
+  close(spread.width / pxPerMm, 198, 'largura = 2 painéis de 99 mm');
+  close(spread.height / pxPerMm, 210, 'altura = 210 mm');
+  const copies = layers.filter((l) => l.parent === spread);
+  assert.deepEqual(copies.map((c) => c.name), ['Capa-frente', 'Capa-verso']);
+  close(copies.find((c) => c.name === 'Capa-verso').x, 0, 'verso à esquerda');
+  close(copies.find((c) => c.name === 'Capa-frente').x / pxPerMm, 99, 'frente encostada no verso');
+  close(result.widthPt / MM, 198 + 2 * (5 + 4.525), '1 PDF: 2 painéis + sangria + área das marcas');
+  assert.equal(layers.filter((l) => l.name === 'Marca de corte').length, 8, 'marcas na peça inteira');
+});

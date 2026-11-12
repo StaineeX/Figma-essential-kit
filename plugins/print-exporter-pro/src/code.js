@@ -458,6 +458,7 @@ function normalizeSettings(input = {}) {
     pageSize: typeof source.pageSize === 'string' ? source.pageSize : DEFAULT_SETTINGS.pageSize,
     bleed,
     quality: source.quality === 'vector' ? 'vector' : 'raster',
+    combine: Boolean(source.combine),
     slugColor: /^#[0-9a-f]{6}$/i.test(String(source.slugColor)) ? source.slugColor : '#ffffff',
     dpi: [150, 300, 600].includes(Number(source.dpi)) ? Number(source.dpi) : 300,
     customWidth: Number(source.customWidth),
@@ -533,6 +534,33 @@ function planExports(nodes, settings) {
   });
 }
 
+// Frame temporário com cópias das pranchetas na mesma posição relativa do
+// canvas. O chamador remove depois; as pranchetas originais não mudam.
+function combineFrames(nodes) {
+  const boxes = nodes.map((node) => {
+    const t = node.absoluteTransform;
+    return { node, x: t[0][2], y: t[1][2] };
+  });
+  const minX = Math.min(...boxes.map((b) => b.x));
+  const minY = Math.min(...boxes.map((b) => b.y));
+  const maxX = Math.max(...boxes.map((b) => b.x + Number(b.node.width)));
+  const maxY = Math.max(...boxes.map((b) => b.y + Number(b.node.height)));
+  const spread = figma.createFrame();
+  spread.name = boxes.slice().sort((a, b) => a.x - b.x || a.y - b.y).map((b) => b.node.name).join(' + ');
+  spread.resize(maxX - minX, maxY - minY);
+  spread.fills = [];
+  spread.clipsContent = true;
+  spread.x = minX;
+  spread.y = maxY + 200;
+  for (const b of boxes) {
+    const copy = b.node.clone();
+    spread.appendChild(copy);
+    copy.x = b.x - minX;
+    copy.y = b.y - minY;
+  }
+  return spread;
+}
+
 function frameSummary(node) {
   return {
     id: node.id,
@@ -595,23 +623,35 @@ function startPlugin() {
   async function exportFrames(settingsInput) {
     currentSettings = normalizeSettings({ ...currentSettings, ...settingsInput, scope });
     const settings = currentSettings;
-    const nodes = nodesForScope();
+    let nodes = nodesForScope();
     const errors = validateSettings(settings, nodes.length);
     if (errors.length) {
       figma.ui.postMessage({ type: 'EXPORT_ERROR', errors });
       return;
     }
 
+    // Folder/lâmina: junta as pranchetas selecionadas em 1 página, na posição
+    // em que estão no canvas (ex.: Capa-verso + Capa-frente).
+    let spread = null;
+    if (settings.combine && nodes.length > 1) {
+      spread = combineFrames(nodes);
+      nodes = [spread];
+    }
     const plan = planExports(nodes, settings);
     figma.ui.postMessage({ type: 'EXPORT_PROGRESS', current: 0, total: plan.length });
-    const result = await exportPlannedFrames(
-      nodes,
-      plan,
-      async (node) => {
-        return makePrintPdf(node, settings);
-      },
-      (current, total) => figma.ui.postMessage({ type: 'EXPORT_PROGRESS', current, total }),
-    );
+    let result;
+    try {
+      result = await exportPlannedFrames(
+        nodes,
+        plan,
+        async (node) => {
+          return makePrintPdf(node, settings);
+        },
+        (current, total) => figma.ui.postMessage({ type: 'EXPORT_PROGRESS', current, total }),
+      );
+    } finally {
+      if (spread && !spread.removed) spread.remove();
+    }
 
     figma.ui.postMessage({
       type: 'EXPORT_RESULT',
@@ -637,6 +677,7 @@ function startPlugin() {
 if (typeof module !== 'undefined') {
   module.exports = {
     collectTopLevelFrames,
+    combineFrames,
     printGeometry,
     cropMarkSegments,
     findFullFrameBackgroundLayer,
