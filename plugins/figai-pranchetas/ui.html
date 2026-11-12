@@ -4,8 +4,9 @@ body{font:12px Inter,Arial,sans-serif;margin:16px;color:#222}h2{font-size:16px;m
 </style></head><body>
 <h2>FIGAI Pranchetas</h2>
 <label>Nome</label><input id="name" value="FIGAI Prancheta">
-<div class="row"><div><label>Largura do painel</label><input id="width" type="number" value="21" min="0.01" step="0.01"></div><div><label>Altura</label><input id="height" type="number" value="29.7" min="0.01" step="0.01"></div></div>
+<div class="row"><div><label>Largura final</label><input id="width" type="number" value="21" min="0.01" step="0.01"></div><div><label>Altura</label><input id="height" type="number" value="29.7" min="0.01" step="0.01"></div></div>
 <label>Unidade</label><select id="unit"><option value="cm">Centímetros</option><option value="m">Metros</option><option value="px">Pixels</option></select>
+<label>Sangria em cada lado (mm) — somada à medida final</label><input id="bleedMm" type="number" value="5" min="0" step="0.5">
 <label>Margem interna total (cm)</label><input id="marginCm" type="number" value="5" min="0" step="0.1">
 <label>Dobras</label><select id="folds"><option value="0">Página inteira — 1 painel</option><option value="0">Meia página — 1 painel</option><option value="1">1 dobra — 2 painéis</option><option value="2">2 dobras — 3 painéis</option><option value="3">3 dobras — 4 painéis</option><option value="4">4 dobras — 5 painéis</option></select>
 <div id="error"></div><div class="actions"><button id="cancel">Cancelar</button><button id="create" style="background:#18a058;color:white">Criar prancheta</button></div>
@@ -14,7 +15,7 @@ var $=function(id){return document.getElementById(id)};
 $('cancel').onclick=function(){parent.postMessage({pluginMessage:{type:'cancel'}},'*')};
 $('create').onclick=function(){
   $('error').textContent='';
-  parent.postMessage({pluginMessage:{type:'create',data:{name:$('name').value,width:$('width').value,height:$('height').value,unit:$('unit').value,marginCm:$('marginCm').value,folds:$('folds').value}}},'*');
+  parent.postMessage({pluginMessage:{type:'create',data:{name:$('name').value,width:$('width').value,height:$('height').value,unit:$('unit').value,marginCm:$('marginCm').value,bleedMm:$('bleedMm').value,folds:$('folds').value}}},'*');
 };
 onmessage=function(event){if(event.data.pluginMessage&&event.data.pluginMessage.type==='error')$('error').textContent=event.data.pluginMessage.message};
 </script></body></html>
