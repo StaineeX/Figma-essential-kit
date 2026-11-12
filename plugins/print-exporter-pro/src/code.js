@@ -169,6 +169,22 @@ function appendBleedBackground(parent, node, geometry, scale, contentScale = 1) 
   return last || rect;
 }
 
+// No espelho ficam só camadas que encostam na borda espelhada (fundo, foto,
+// ondas). Texto e logo perto da borda, sem encostar, não aparecem na sangria.
+function keepEdgeLayers(mirror, sides) {
+  if (!Array.isArray(mirror.children)) return;
+  const W = Number(mirror.width);
+  const H = Number(mirror.height);
+  const t = 1;
+  for (const child of [...mirror.children]) {
+    const touches = (sides.left && child.x <= t)
+      || (sides.right && child.x + child.width >= W - t)
+      || (sides.top && child.y <= t)
+      || (sides.bottom && child.y + child.height >= H - t);
+    if (!touches) child.remove();
+  }
+}
+
 // 8 molduras (4 lados + 4 cantos) fora do corte, cada uma com a arte refletida
 // na borda vizinha. Retorna a última criada.
 function appendMirrorBleed(parent, node, x0, y0, w, h, pageW, pageH, contentScale) {
@@ -199,6 +215,10 @@ function appendMirrorBleed(parent, node, x0, y0, w, h, pageW, pageH, contentScal
       if (contentScale !== 1) mirror.rescale(contentScale);
       clip.appendChild(mirror);
       mirror.name = 'Espelho';
+      keepEdgeLayers(mirror, {
+        left: cols.indexOf(col) === 0, right: cols.indexOf(col) === 2,
+        top: rows.indexOf(row) === 0, bottom: rows.indexOf(row) === 2,
+      });
       mirror.relativeTransform = [[col.flip, 0, col.origin - col.at], [0, row.flip, row.origin - row.at]];
       last = clip;
     }

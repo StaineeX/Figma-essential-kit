@@ -219,3 +219,32 @@ test('A5: área útil 148 × 210 mm e sangria de 5 mm por fora; marcas só preta
   assert.equal(marks.length, 8, 'só as 8 marcas pretas, sem contorno branco');
   for (const m of marks) assert.deepEqual(m.fills[0].color, { r: 0, g: 0, b: 0 });
 });
+
+test('espelho leva só camadas que encostam na borda: logo/texto perto da borda ficam fora', async () => {
+  const { layers } = mockFigma();
+  const kids = () => {
+    const list = [
+      { name: 'fundo', x: 0, y: 0, width: 1200, height: 400 },
+      { name: 'onda', x: 0, y: 340, width: 1200, height: 60 },
+      { name: 'logo', x: 20, y: 100, width: 80, height: 200 },
+    ];
+    return list.map((k) => ({ ...k, remove() { this.parent.children.splice(this.parent.children.indexOf(this), 1); } }));
+  };
+  const clone = () => {
+    const c = { width: 1200, height: 400, rescale(s) { this.width *= s; this.height *= s; for (const k of this.children) { k.x *= s; k.y *= s; k.width *= s; k.height *= s; } }, remove() {} };
+    c.children = kids().map((k) => Object.assign(k, { parent: c }));
+    return c;
+  };
+  try {
+    await makePrintPdf({ type: 'FRAME', width: 1200, height: 400, fills: [], children: [], clone, rescale() {} },
+      normalizeSettings({ pageSize: 'frame', bleed: 5, cropMarks: true }));
+  } finally { delete global.figma; }
+  const mirrors = layers.filter((l) => l.name === 'Espelho');
+  const names = (t) => mirrors.find((m) => m.relativeTransform[0][0] === t[0] && m.relativeTransform[1][1] === t[1] && t[2](m.parent)).children.map((k) => k.name);
+  const minX = Math.min(...mirrors.map((m) => m.parent.x));
+  const minY = Math.min(...mirrors.map((m) => m.parent.y));
+  const maxY = Math.max(...mirrors.map((m) => m.parent.y));
+  assert.deepEqual(names([-1, 1, (p) => p.x === minX]), ['fundo', 'onda'], 'esquerda: sem o logo');
+  assert.deepEqual(names([1, -1, (p) => p.y === minY]), ['fundo'], 'topo: só o fundo');
+  assert.deepEqual(names([1, -1, (p) => p.y === maxY]), ['fundo', 'onda'], 'base: fundo e onda');
+});

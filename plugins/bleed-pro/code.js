@@ -174,6 +174,13 @@ async function addEdge(sheet, source, slug, b) {
             clip.clipsContent = true;
             const mirror = source.clone();
             clip.appendChild(mirror);
+            // Só camadas que encostam na borda espelhada (fundo, foto, ondas);
+            // texto e logo perto da borda não vão para a sangria.
+            for (const child of [...mirror.children]) {
+                const touches = (cx < tx && child.x <= 1) || (cx >= tx + sw && child.x + child.width >= sw - 1)
+                    || (cy < ty && child.y <= 1) || (cy >= ty + sh && child.y + child.height >= sh - 1);
+                if (!touches) child.remove();
+            }
             mirror.relativeTransform = [[fx, 0, ox - cx], [0, fy, oy - cy]];
             clip.locked = true;
         }
