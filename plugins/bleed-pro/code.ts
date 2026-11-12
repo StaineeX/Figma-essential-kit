@@ -182,7 +182,7 @@ async function prepare(source:FrameNode,config:Config):Promise<{node:FrameNode;w
   print.setSharedPluginData('printkit','sheet',JSON.stringify({
     version:1,source:'bleed-pro',ppi:config.basePpi,
     trim:{x:slug+b.left,y:slug+b.top,width:source.width,height:source.height},
-    bleed:b,slug,guides:GUIDE_NAME,
+    bleed:b,slug,guides:GUIDE_NAME,marks:'MARCAS DE CORTE • IMPRESSÃO',
   }))
   print.setPluginData('bleedpro.geometry',JSON.stringify({sourceWidth:source.width,sourceHeight:source.height,bleed:b,margin:m,slug,dpi:config.dpi,basePpi:config.basePpi}))
   let warning=''

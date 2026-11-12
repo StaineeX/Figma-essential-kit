@@ -211,6 +211,7 @@ async function prepare(source, config) {
         bleed: b,
         slug,
         guides: GUIDE_NAME,
+        marks: 'MARCAS DE CORTE • IMPRESSÃO',
     }));
     print.setPluginData('bleedpro.geometry', JSON.stringify({ sourceWidth: source.width, sourceHeight: source.height, bleed: b, margin: m, slug, dpi: config.dpi, basePpi: config.basePpi }));
     let warning = '';

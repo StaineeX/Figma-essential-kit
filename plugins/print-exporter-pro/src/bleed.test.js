@@ -169,3 +169,28 @@ test('API printkit: lê ppi e nome das guias gravados pelo Bleed Pro', async () 
   assert.deepEqual(calls, [false], 'guias nomeadas pela API escondidas');
   assert.equal(guides.visible, true);
 });
+
+test('API printkit com corte: tira guias/marcas do Bleed Pro e põe as marcas do Exporter', async () => {
+  const { layers, sheet } = mockFigma();
+  const guides = { name: 'SANGRIA • NÃO EDITAR', visible: true };
+  const bpMarks = { name: 'MARCAS DE CORTE • IMPRESSÃO', visible: true };
+  const seen = [];
+  const data = { version: 1, ppi: 96, guides: guides.name, marks: bpMarks.name, trim: { x: 40, y: 40, width: 400, height: 600 } };
+  const copy = {
+    type: 'FRAME', width: 480, height: 680, children: [guides, bpMarks],
+    getSharedPluginData: () => JSON.stringify(data),
+    clone() { seen.push([guides.visible, bpMarks.visible]); return { rescale() {}, remove() {} }; },
+  };
+  try {
+    await makePrintPdf(copy, normalizeSettings({}));
+  } finally { delete global.figma; }
+  assert.deepEqual(seen, [[false, false]], 'guias e marcas do Bleed Pro escondidas na exportação');
+  assert.equal(guides.visible && bpMarks.visible, true, 'voltam depois');
+  close(sheet().width, 360, '480 px a 96 px/pol = 360 pt');
+  const marks = layers.filter((l) => l.name === 'Marca de corte');
+  assert.equal(marks.length, 8);
+  const x0 = 30, x1 = 330; // corte em pt
+  for (const m of marks.filter((l) => l.width > l.height)) {
+    assert.ok([x0, x1].some((x) => Math.abs(m.x - x) < 0.01 || Math.abs(m.x + m.width - x) < 0.01), 'encosta no corte');
+  }
+});

@@ -196,6 +196,7 @@ async function exportSheet(printFrame, geometry, settings) {
 // Cópia criada pelo Bleed Pro (contorno vermelho): já tem sangria esticada e
 // marcas. Exporta como está, sem as guias, convertendo 96 px/pol para pt.
 const BLEED_PRO_GUIDES = 'SANGRIA • NÃO EDITAR';
+const BLEED_PRO_MARKS = 'MARCAS DE CORTE • IMPRESSÃO';
 
 // "API" entre plugins: o Bleed Pro grava em shared plugin data ('printkit',
 // 'sheet') as medidas da cópia (ppi, corte, sangria, guias).
@@ -220,11 +221,16 @@ async function exportBleedProCopy(node, settings) {
   const sheet = readPrintkitSheet(node);
   const guidesName = (sheet && sheet.guides) || BLEED_PRO_GUIDES;
   const pxToPt = sheet ? 72 / Number(sheet.ppi) : FIGMA_PX_TO_PT;
-  const guides = node.children.filter((child) => child.name === guidesName && child.visible !== false);
+  // Com a API, o Bleed Pro só orienta o designer: guias e marcas dele saem, e as
+  // marcas de impressão são do Exporter, no corte informado pela API.
+  const ownMarks = Boolean(sheet && sheet.trim);
+  const hiddenNames = new Set([guidesName, ...(ownMarks ? [sheet.marks || BLEED_PRO_MARKS] : [])]);
+  const guides = node.children.filter((child) => hiddenNames.has(child.name) && child.visible !== false);
   guides.forEach((guide) => { guide.visible = false; });
   try {
     const widthPt = Number(node.width) * pxToPt;
     const heightPt = Number(node.height) * pxToPt;
+    if (ownMarks) return await exportWithOwnMarks(node, sheet, pxToPt, widthPt, heightPt, settings);
     if (settings.quality === 'raster') {
       const scale = rasterScale(widthPt, heightPt, settings.dpi) * pxToPt;
       const bytes = await node.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
@@ -239,6 +245,47 @@ async function exportBleedProCopy(node, settings) {
     }
   } finally {
     guides.forEach((guide) => { guide.visible = true; });
+  }
+}
+
+// Monta folha temporária: cópia do Bleed Pro (já sem guias/marcas) + marcas do
+// Exporter saindo do canto do corte até a borda da folha.
+async function exportWithOwnMarks(node, sheet, pxToPt, widthPt, heightPt, settings) {
+  const temp = figma.createFrame();
+  let copy;
+  try {
+    temp.name = '__print_exporter_pro_temp__';
+    temp.resize(widthPt, heightPt);
+    temp.fills = [];
+    temp.clipsContent = true;
+    copy = node.clone();
+    temp.appendChild(copy);
+    copy.rescale(pxToPt);
+    copy.x = 0;
+    copy.y = 0;
+    if (settings.cropMarks) {
+      const x0 = sheet.trim.x * pxToPt;
+      const y0 = sheet.trim.y * pxToPt;
+      const x1 = x0 + sheet.trim.width * pxToPt;
+      const y1 = y0 + sheet.trim.height * pxToPt;
+      for (const [t, color, name] of [
+        [CROP_HALO_PT, { r: 1, g: 1, b: 1 }, 'Marca de corte (contorno)'],
+        [CROP_STROKE_PT, { r: 0, g: 0, b: 0 }, 'Marca de corte'],
+      ]) {
+        for (const y of [y0, y1]) {
+          appendSolidRectangle(temp, name, 0, y - t / 2, x0, t, color);
+          appendSolidRectangle(temp, name, x1, y - t / 2, widthPt - x1, t, color);
+        }
+        for (const x of [x0, x1]) {
+          appendSolidRectangle(temp, name, x - t / 2, 0, t, y0, color);
+          appendSolidRectangle(temp, name, x - t / 2, y1, t, heightPt - y1, color);
+        }
+      }
+    }
+    return await exportSheet(temp, { pageWidthPt: widthPt, pageHeightPt: heightPt }, settings);
+  } finally {
+    if (copy && !copy.removed && copy.parent !== temp) copy.remove();
+    if (!temp.removed) temp.remove();
   }
 }
 

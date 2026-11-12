@@ -83,6 +83,6 @@ O `check` valida a sintaxe do controlador e executa toda a suíte de testes.
 O Bleed Pro grava na cópia de impressão um *shared plugin data* que qualquer plugin pode ler:
 
 - namespace `printkit`, chave `sheet`
-- JSON `{ version: 1, source: "bleed-pro", ppi, trim: { x, y, width, height }, bleed: { top, right, bottom, left }, slug, guides }`
+- JSON `{ version: 1, source: "bleed-pro", ppi, trim: { x, y, width, height }, bleed: { top, right, bottom, left }, slug, guides, marks }`
 
-Ao exportar uma cópia com esses dados, o Print Exporter Pro a exporta como está (sangria e marcas do Bleed Pro), esconde a camada de guias indicada em `guides` e converte o tamanho usando `ppi`.
+Divisão de papéis: o Bleed Pro prepara a peça para o designer (fundo esticado, guias de sangria, corte e área segura). Ao exportar uma cópia com esses dados, o Print Exporter Pro esconde as camadas `guides` e `marks` do Bleed Pro, desenha as próprias marcas de impressão no corte informado em `trim` e converte o tamanho usando `ppi`.
