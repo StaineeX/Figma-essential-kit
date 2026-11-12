@@ -65,6 +65,49 @@ function cropMarkSegments(geometry) {
   return marks;
 }
 
+// Marcas de registro (alvo) no meio de cada lado, na área fora da sangria.
+// Necessárias para alinhar as chapas do offset, sobretudo em arte com borda branca.
+function registrationMarks(geometry) {
+  const { bleedPt, marginPt, pageWidthPt, pageHeightPt } = geometry;
+  const slug = marginPt - bleedPt;
+  const radius = Math.min(slug * 0.4, 2 * PT_PER_MM);
+  const c = slug / 2;
+  return {
+    radius,
+    centers: [
+      [pageWidthPt / 2, c],
+      [pageWidthPt / 2, pageHeightPt - c],
+      [c, pageHeightPt / 2],
+      [pageWidthPt - c, pageHeightPt / 2],
+    ],
+  };
+}
+
+function appendRegistrationMark(parent, cx, cy, radius) {
+  const black = { r: 0, g: 0, b: 0 };
+  const ring = figma.createEllipse();
+  parent.appendChild(ring);
+  ring.name = 'Marca de registro';
+  ring.resize(radius * 2, radius * 2);
+  ring.x = cx - radius;
+  ring.y = cy - radius;
+  ring.fills = [];
+  ring.strokes = [{ type: 'SOLID', color: black }];
+  ring.strokeWeight = CROP_STROKE_PT;
+  const dot = radius * 0.5;
+  const inner = figma.createEllipse();
+  parent.appendChild(inner);
+  inner.name = 'Marca de registro (centro)';
+  inner.resize(dot * 2, dot * 2);
+  inner.x = cx - dot;
+  inner.y = cy - dot;
+  inner.fills = [{ type: 'SOLID', color: black }];
+  inner.strokes = [];
+  const arm = radius * 1.4;
+  appendSolidRectangle(parent, 'Marca de registro (cruz)', cx - arm, cy - CROP_STROKE_PT / 2, arm * 2, CROP_STROKE_PT, black);
+  appendSolidRectangle(parent, 'Marca de registro (cruz)', cx - CROP_STROKE_PT / 2, cy - arm, CROP_STROKE_PT, arm * 2, black);
+}
+
 function solidFrameBackground(node) {
   if (!node || !Array.isArray(node.fills)) return null;
   const visible = node.fills.filter((paint) => paint.visible !== false);
@@ -216,6 +259,8 @@ async function makePrintPdf(node, settings) {
           );
         }
       }
+      const reg = registrationMarks(geometry);
+      for (const [cx, cy] of reg.centers) appendRegistrationMark(printFrame, cx * scale, cy * scale, reg.radius * scale);
     }
 
     return await printFrame.exportAsync({ format: 'PDF' });
@@ -419,6 +464,7 @@ if (typeof module !== 'undefined') {
     collectTopLevelFrames,
     printGeometry,
     cropMarkSegments,
+    registrationMarks,
     findFullFrameBackgroundLayer,
     bleedBackgroundBounds,
     appendBleedBackground,
