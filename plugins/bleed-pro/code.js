@@ -167,7 +167,9 @@ async function addEdge(sheet, source, slug, b) {
         r.locked = true;
     }
     const t = .5;
-    const bg = source.children.find(n => n.visible && n.type !== 'TEXT' && n.x <= t && n.y <= t && n.x + n.width >= source.width - t && n.y + n.height >= source.height - t);
+    // Camada que cobre a prancheta inteira; senão, a camada mais de baixo (o fundo).
+    const bg = source.children.find(n => n.visible && n.type !== 'TEXT' && n.x <= t && n.y <= t && n.x + n.width >= source.width - t && n.y + n.height >= source.height - t)
+        || source.children.find(n => n.visible && n.type !== 'TEXT');
     if (bg && 'rescale' in bg) {
         const c = bg.clone();
         sheet.insertChild(fills.length ? 1 : 0, c);

@@ -356,7 +356,7 @@
 
       <footer class="footer">
         <button id="exportButton" class="primary" type="button" disabled>Exportar PDF</button>
-        <p class="fine-print">O preset Gráfica usa exatamente 20 × 7 cm, igual ao modelo de referência. Marcas vetoriais e espaço de sangria incluídos. Fundos que ocupam todo o frame são estendidos; elementos cortados pela borda precisam de sangria preparada. A exportação não define TrimBox/BleedBox; CMYK não é convertido automaticamente.</p>
+        <p class="fine-print">O preset Gráfica usa o tamanho do frame. Marcas vetoriais e espaço de sangria incluídos. Fundos que ocupam todo o frame são estendidos; elementos cortados pela borda precisam de sangria preparada. A exportação não define TrimBox/BleedBox; CMYK não é convertido automaticamente.</p>
       </footer>
     </main>
 
@@ -365,9 +365,9 @@
       const PRESETS = {
         screen: { preset: 'screen', colorMode: 'RGB', pageSize: 'frame', bleed: 0, cropMarks: false },
         press: { preset: 'press', colorMode: 'CMYK', pageSize: 'A4', bleed: 3, cropMarks: true },
-        printer: { preset: 'printer', colorMode: 'CMYK', pageSize: 'reference', bleed: 5, cropMarks: true },
+        printer: { preset: 'printer', colorMode: 'CMYK', pageSize: 'frame', bleed: 5, cropMarks: true },
       };
-      const DEFAULTS = { scope: 'selection', colorMode: 'CMYK', preset: 'printer', pageSize: 'reference', bleed: 5, cropMarks: true };
+      const DEFAULTS = { scope: 'selection', colorMode: 'CMYK', preset: 'printer', pageSize: 'frame', bleed: 5, cropMarks: true };
       const state = { scope: 'selection', frames: [], settings: { ...DEFAULTS }, busy: false };
       const $ = (selector) => document.querySelector(selector);
       const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -380,7 +380,8 @@
         try {
           const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
           const settings = { ...DEFAULTS, ...saved };
-          if (settings.preset === 'printer' && settings.pageSize === 'frame') settings.pageSize = 'reference';
+          // Preset Gráfica antes forçava 20 × 7 cm; agora usa o tamanho do frame.
+          if (settings.preset === 'printer' && settings.pageSize === 'reference') settings.pageSize = 'frame';
           return settings;
         } catch (error) {
           return { ...DEFAULTS };

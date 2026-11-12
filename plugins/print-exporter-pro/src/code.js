@@ -91,7 +91,8 @@ function findFullFrameBackgroundLayer(node) {
       && y <= tolerance
       && x + width >= Number(node.width) - tolerance
       && y + height >= Number(node.height) - tolerance;
-  }) || null;
+  }) || node.children.find((child) => child && child.visible !== false && child.type !== 'TEXT' && child.type !== 'TEXT_PATH') || null;
+  // Sem camada que cubra o frame inteiro: usa a camada mais de baixo (o fundo).
 }
 
 function bleedBackgroundBounds(node, bleed) {
@@ -145,8 +146,9 @@ function appendBleedBackground(parent, node, geometry, scale, contentScale = 1) 
   const scaleX = bounds.width / Number(backgroundLayer.width);
   const scaleY = bounds.height / Number(backgroundLayer.height);
   backgroundClone.rescale(Math.max(scaleX, scaleY));
-  backgroundClone.x = geometry.marginPt * scale + bounds.x;
-  backgroundClone.y = geometry.marginPt * scale + bounds.y;
+  // Centraliza: o fundo aumentado cobre toda a área de sangria.
+  backgroundClone.x = geometry.marginPt * scale + bounds.x + (bounds.width - Number(backgroundClone.width)) / 2;
+  backgroundClone.y = geometry.marginPt * scale + bounds.y + (bounds.height - Number(backgroundClone.height)) / 2;
   return backgroundClone;
 }
 
