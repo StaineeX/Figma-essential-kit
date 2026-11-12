@@ -63,7 +63,7 @@
         <div class="section-heading"><h2 id="measure-title">Medidas e escala</h2><span id="unit-note">cm</span></div>
         <div class="two">
           <div class="field"><label for="unit">Unidade da sangria</label><select id="unit" class="control"><option value="mm">mm</option><option value="cm" selected>cm</option><option value="px">px</option></select></div>
-          <div class="field"><label for="basePpi">Escala (px/pol)</label><input id="basePpi" class="control" type="number" value="72" min="36" max="1200" step="1" inputmode="decimal"></div>
+          <div class="field"><label for="basePpi">Escala (px/pol)</label><input id="basePpi" class="control" type="number" value="96" min="36" max="1200" step="1" inputmode="decimal"></div>
           <div class="field"><label for="dpi">Saída (DPI)</label><input id="dpi" class="control" type="number" value="300" min="72" max="1200" step="1" inputmode="decimal"></div>
         </div>
         <p class="hint">A unidade vale para a sangria externa e a margem interna. 0,3 cm = 3 mm; em px, o valor depende da escala da arte.</p>
@@ -158,7 +158,7 @@
   $('unit').addEventListener('change',()=>{
     const next=unitOf($('unit').value)
     if(next===previousUnit)return
-    const basePpi=Math.max(36,Math.min(1200,num('basePpi')||72))
+    const basePpi=Math.max(36,Math.min(1200,num('basePpi')||96))
     const factor=unitInches(previousUnit,basePpi)/unitInches(next,basePpi)
     for(const id of ['ot','or','ob','ol','it','ir','ib','il']){
       const value=num(id)

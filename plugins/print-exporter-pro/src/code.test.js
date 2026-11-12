@@ -163,7 +163,7 @@ test('exports the sheet as a 300 dpi PNG by default, vector PDF only on request'
     },
     createRectangle() { return { resize() {}, remove() {} }; },
   };
-  const node = { type: 'FRAME', width: 72, height: 72, fills: [], children: [], clone: () => ({ remove() {} }) };
+  const node = { type: 'FRAME', width: 72, height: 72, fills: [], children: [], clone: () => ({ remove() {}, rescale() {} }) };
   try {
     const raster = await makePrintPdf(node, normalizeSettings({ bleed: 0, cropMarks: true }));
     assert.equal(raster.raster, true);
@@ -178,12 +178,13 @@ test('exports the sheet as a 300 dpi PNG by default, vector PDF only on request'
 
 test('crop marks run from the trim corner to the page edge, over the artwork', () => {
   const geometry = printGeometry(100, 50, normalizeSettings({ bleed: 5, cropMarks: true }));
-  const { marginPt: m, pageWidthPt: W, pageHeightPt: H } = geometry;
+  const { marginPt: m, pageWidthPt: W, pageHeightPt: H, widthPt: w, heightPt: h } = geometry;
+  assert.equal(w, 75, '100 px do Figma (96 px/pol) = 75 pt');
   const marks = cropMarkSegments(geometry);
   assert.equal(marks.length, 8);
   assert.deepEqual(marks[0], [[0, m], [m, m]]);
-  assert.deepEqual(marks[1], [[m + 100, m], [W, m]]);
-  assert.deepEqual(marks[7], [[m + 100, m + 50], [m + 100, H]]);
+  assert.deepEqual(marks[1], [[m + w, m], [W, m]]);
+  assert.deepEqual(marks[7], [[m + w, m + h], [m + w, H]]);
 });
 
 test('keeps 5 mm physical bleed when exporting an oversized 20 x 7 frame', async () => {

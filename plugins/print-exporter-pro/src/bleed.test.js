@@ -34,7 +34,7 @@ function frame(width, height, extra = {}) {
 }
 
 for (const [label, settings, w, h, expectW, expectH] of [
-  ['mesmo do frame 5 mm', { pageSize: 'frame', bleed: 5 }, 610, 845, 610, 845],
+  ['mesmo do frame 5 mm (96 px/pol)', { pageSize: 'frame', bleed: 5 }, 610, 845, 610 * 0.75, 845 * 0.75],
   ['A4 3 mm', { pageSize: 'A4', bleed: 3 }, 210 * 2, 297 * 2, 210 * MM, 297 * MM],
   ['cartão deitado 2 mm', { pageSize: 'card', bleed: 2 }, 900, 500, 90 * MM, 50 * MM],
   ['personalizado 5 mm', { pageSize: 'custom', customWidth: 150, customHeight: 300, bleed: 5 }, 300, 600, 150 * MM, 300 * MM],
@@ -82,6 +82,18 @@ for (const [label, settings, w, h, expectW, expectH] of [
   });
 }
 
+test('fundo em imagem do frame também é estendido até a sangria', async () => {
+  const { layers } = mockFigma();
+  const image = { type: 'IMAGE', imageHash: 'abc', scaleMode: 'FILL' };
+  try {
+    await makePrintPdf(frame(794, 1123, { fills: [image] }), normalizeSettings({ pageSize: 'A4', bleed: 5, cropMarks: true }));
+  } finally { delete global.figma; }
+  const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
+  assert.ok(bg, 'fundo estendido existe');
+  assert.deepEqual(bg.fills, [image]);
+  close(bg.width, 210 * MM + 10 * MM, 'A4 + 5 mm de cada lado');
+});
+
 test('sem cor de fundo, estende a camada mais de baixo cobrindo toda a sangria', async () => {
   const { layers } = mockFigma();
   const photo = { name: 'foto', type: 'RECTANGLE', x: 50, y: 50, width: 400, height: 300, visible: true, rescale() {} };
@@ -95,6 +107,6 @@ test('sem cor de fundo, estende a camada mais de baixo cobrindo toda a sangria',
   const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
   assert.ok(bg, 'fundo estendido existe');
   assert.ok(bg.x <= extra + 0.01 && bg.y <= extra + 0.01, 'cobre o canto superior esquerdo da sangria');
-  assert.ok(bg.x + bg.width >= extra + 610 + 2 * bleed - 0.01, 'cobre a sangria direita');
-  assert.ok(bg.y + bg.height >= extra + 845 + 2 * bleed - 0.01, 'cobre a sangria inferior');
+  assert.ok(bg.x + bg.width >= extra + 610 * 0.75 + 2 * bleed - 0.01, 'cobre a sangria direita');
+  assert.ok(bg.y + bg.height >= extra + 845 * 0.75 + 2 * bleed - 0.01, 'cobre a sangria inferior');
 });

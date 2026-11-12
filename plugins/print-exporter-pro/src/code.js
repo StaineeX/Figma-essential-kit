@@ -15,6 +15,7 @@ const EXPORTABLE_TYPES = new Set(['FRAME', 'COMPONENT', 'INSTANCE', 'SECTION']);
 const PT_PER_MM = 72 / 25.4;
 const REFERENCE_FRAME_WIDTH_PT = 200 * PT_PER_MM;
 const REFERENCE_FRAME_HEIGHT_PT = 70 * PT_PER_MM;
+const FIGMA_PX_TO_PT = 72 / 96;
 const CROP_EXTRA_MM = 4.525;
 const CROP_STROKE_PT = 0.25;
 const CROP_HALO_PT = 1.25;
@@ -42,7 +43,8 @@ function targetSizePt(widthPt, heightPt, settings) {
     const [w, h] = widthPt > heightPt ? [long, short] : [short, long];
     return [w * PT_PER_MM, h * PT_PER_MM];
   }
-  return [widthPt, heightPt];
+  // Frames do Figma (e do FIGAI Pranchetas) usam 96 px/pol; PDF usa 72 pt/pol.
+  return [widthPt * FIGMA_PX_TO_PT, heightPt * FIGMA_PX_TO_PT];
 }
 
 function printGeometry(widthPt, heightPt, settings) {
@@ -85,13 +87,11 @@ function cropMarkSegments(geometry) {
   return marks;
 }
 
-function solidFrameBackground(node) {
+// Todos os preenchimentos visíveis do frame (cor, gradiente ou imagem).
+function frameBackgroundFills(node) {
   if (!node || !Array.isArray(node.fills)) return null;
-  const visible = node.fills.filter((paint) => paint.visible !== false);
-  if (visible.length !== 1 || visible[0].type !== 'SOLID') return null;
-  const paint = visible[0];
-  if (!paint.color || paint.opacity === 0) return null;
-  return { color: paint.color, opacity: paint.opacity === undefined ? 1 : paint.opacity };
+  const visible = node.fills.filter((paint) => paint.visible !== false && paint.opacity !== 0);
+  return visible.length ? visible : null;
 }
 
 function findFullFrameBackgroundLayer(node) {
@@ -143,22 +143,25 @@ function appendBleedBackground(parent, node, geometry, scale, contentScale = 1) 
     height: Number(node.height) * contentScale,
   };
   const bounds = bleedBackgroundBounds(scaledNode, bleed);
-  const solidBackground = solidFrameBackground(node);
-  if (solidBackground) {
-    return appendSolidRectangle(
+  // 1) Preenchimento do próprio frame (cor, gradiente ou imagem) cobrindo a sangria.
+  let rect = null;
+  const fills = frameBackgroundFills(node);
+  if (fills) {
+    rect = appendSolidRectangle(
       parent,
       'Fundo estendido para sangria',
       geometry.marginPt * scale + bounds.x,
       geometry.marginPt * scale + bounds.y,
       bounds.width,
       bounds.height,
-      solidBackground.color,
-      solidBackground.opacity,
+      { r: 1, g: 1, b: 1 },
     );
+    rect.fills = fills;
   }
 
+  // 2) Camada de fundo (ex.: foto) aumentada por cima, também cobrindo a sangria.
   const backgroundLayer = findFullFrameBackgroundLayer(node);
-  if (!backgroundLayer || typeof backgroundLayer.clone !== 'function' || typeof backgroundLayer.rescale !== 'function') return null;
+  if (!backgroundLayer || typeof backgroundLayer.clone !== 'function' || typeof backgroundLayer.rescale !== 'function') return rect;
 
   const backgroundClone = backgroundLayer.clone();
   parent.appendChild(backgroundClone);

@@ -26,7 +26,7 @@ O plugin não precisa de servidor nem de acesso à internet.
 1. Selecione uma ou mais pranchetas (`Frame`) no canvas.
 2. Em **Aplicar em**, escolha **Selecionadas** ou **Página atual**.
 3. Em **Medidas e escala**, escolha a unidade da sangria e da margem: `mm`, `cm` ou `px`.
-4. Informe a **Escala (px/pol)** da arte. Use `72` quando 72 px representam uma polegada; use a escala real da arte quando ela foi criada em outra resolução.
+4. Informe a **Escala (px/pol)** da arte. O padrão é `96` (escala do Figma e do FIGAI Pranchetas: 96 px = 1 polegada); use a escala real da arte quando ela foi criada em outra resolução.
 5. Informe a resolução de saída em **DPI**.
 6. Preencha a **Sangria externa**. Ela aumenta a área preparada para impressão.
 7. Preencha a **Margem interna de segurança**. Ela cria uma guia dentro do corte e não reduz nem corta a arte.
