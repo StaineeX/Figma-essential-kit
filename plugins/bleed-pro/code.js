@@ -3,7 +3,6 @@ const OWN = 'bleedpro.sourceId';
 const KIND = 'bleedpro.print';
 const MARKS = 'bleedpro.marks';
 const GUIDE_NAME = 'SANGRIA • NÃO EDITAR';
-const pending = new Map();
 const downloads = new Map();
 let sequence = 0;
 let busy = false;
@@ -130,17 +129,6 @@ function addCropMarks(sheet, slug, b, w, h) {
     }
     c.locked = true;
     c.setPluginData(MARKS, '1');
-}
-function edgeAsset(bytes, w, h, b, scale) {
-    const job = String(++sequence);
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-            pending.delete(job);
-            reject(new Error('A extensão da borda demorou demais.'));
-        }, 45000);
-        pending.set(job, { resolve, reject, timer });
-        figma.ui.postMessage({ type: 'edge-request', job, bytes: Array.from(bytes), width: w, height: h, outer: b, scale });
-    });
 }
 function downloadFile(filename, mime, bytes) {
     const job = String(++sequence);
@@ -380,18 +368,6 @@ figma.root.setRelaunchData({ 'f394038b-4a32-4ad7-b82c-4530431c9c28': 'Abrir Blee
 figma.ui.onmessage = async (message) => {
     if (message.type === 'resize') {
         figma.ui.resize(WIDTH, Math.max(360, Math.min(920, Math.round(message.height))));
-        return;
-    }
-    if (message.type === 'edge-result') {
-        const w = pending.get(message.job);
-        if (!w)
-            return;
-        clearTimeout(w.timer);
-        pending.delete(message.job);
-        if (message.error || !message.bytes)
-            w.reject(new Error(message.error || 'Falha ao gerar borda'));
-        else
-            w.resolve(new Uint8Array(message.bytes));
         return;
     }
     if (message.type === 'download-ack') {

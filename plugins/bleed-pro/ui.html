@@ -186,53 +186,10 @@
     const h=Math.ceil(root.getBoundingClientRect().height)
     if(h&&h!==lastHeight){lastHeight=h;post({type:'resize',height:h})}
   }).observe(root)
-  function paddedBorder(message){
-    return new Promise((resolve,reject)=>{
-      const bytes=new Uint8Array(message.bytes)
-      const url=URL.createObjectURL(new Blob([bytes],{type:'image/png'}))
-      const img=new Image()
-      img.onload=()=>{
-        try{
-          const iw=img.naturalWidth,ih=img.naturalHeight
-          const px=iw/message.width
-          const l=Math.max(0,Math.round(message.outer.left*px))
-          const r=Math.max(0,Math.round(message.outer.right*px))
-          const t=Math.max(0,Math.round(message.outer.top*px))
-          const b=Math.max(0,Math.round(message.outer.bottom*px))
-          const w=iw+l+r,h=ih+t+b
-          if(w>8000||h>8000||w*h>36000000)throw new Error('A borda excedeu o limite de 36 megapixels.')
-          const canvas=document.createElement('canvas')
-          canvas.width=w;canvas.height=h
-          const ctx=canvas.getContext('2d',{willReadFrequently:false})
-          if(!ctx)throw new Error('Canvas indisponível.')
-          ctx.imageSmoothingEnabled=false
-          if(l)ctx.drawImage(img,0,0,1,ih,0,t,l,ih)
-          if(r)ctx.drawImage(img,iw-1,0,1,ih,l+iw,t,r,ih)
-          if(t)ctx.drawImage(img,0,0,iw,1,l,0,iw,t)
-          if(b)ctx.drawImage(img,0,ih-1,iw,1,l,t+ih,iw,b)
-          if(l&&t)ctx.drawImage(img,0,0,1,1,0,0,l,t)
-          if(r&&t)ctx.drawImage(img,iw-1,0,1,1,l+iw,0,r,t)
-          if(l&&b)ctx.drawImage(img,0,ih-1,1,1,0,t+ih,l,b)
-          if(r&&b)ctx.drawImage(img,iw-1,ih-1,1,1,l+iw,t+ih,r,b)
-          canvas.toBlob(async blob=>{
-            if(!blob){reject(new Error('Não foi possível criar a extensão.'));return}
-            try{resolve(Array.from(new Uint8Array(await blob.arrayBuffer())))}catch(e){reject(e)}
-          },'image/png')
-        }catch(e){reject(e)}finally{URL.revokeObjectURL(url)}
-      }
-      img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('A imagem de borda não pôde ser aberta.'))}
-      img.src=url
-    })
-  }
   onmessage=async event=>{
     const m=event.data.pluginMessage
     if(!m||!m.type)return
     if(m.type==='selection'){$('selection').textContent=m.message;return}
-    if(m.type==='edge-request'){
-      try{const bytes=await paddedBorder(m);post({type:'edge-result',job:m.job,bytes})}
-      catch(e){post({type:'edge-result',job:m.job,error:e.message||String(e)})}
-      return
-    }
     if(m.type==='download'){
       try{
         const blob=new Blob([new Uint8Array(m.bytes)],{type:m.mime})

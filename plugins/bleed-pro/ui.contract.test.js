@@ -22,3 +22,9 @@ test('uses native controls for the regular Figma plugin manifest', () => {
     assert.match(html, new RegExp(`<${control}`));
   }
 });
+
+test('sangria não usa imagem esticada nem fundo branco (origem das linhas brancas)', () => {
+  const code = require('node:fs').readFileSync(require('node:path').join(__dirname, 'code.js'), 'utf8');
+  assert.doesNotMatch(html, /edge-request|paddedBorder/);
+  assert.doesNotMatch(code, /createImage|edge-request|PREENCHER MANUALMENTE/);
+});

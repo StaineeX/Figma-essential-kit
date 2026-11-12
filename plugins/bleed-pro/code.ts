@@ -11,10 +11,8 @@ type UiMessage =
   | {type:'apply';config:Config}
   | {type:'export';config:Config}
   | {type:'remove';scope:'selection'|'page'}
-  | {type:'edge-result';job:string;bytes?:number[];error?:string}
   | {type:'download-ack';job:string;error?:string}
 type Waiter<T> = {resolve:(v:T)=>void;reject:(e:Error)=>void;timer:number}
-const pending = new Map<string, Waiter<Uint8Array>>()
 const downloads = new Map<string, Waiter<void>>()
 let sequence = 0
 let busy = false
@@ -112,17 +110,6 @@ function addCropMarks(sheet:FrameNode,slug:number,b:Sides,w:number,h:number):voi
   }
   c.locked=true
   c.setPluginData(MARKS,'1')
-}
-function edgeAsset(bytes:Uint8Array,w:number,h:number,b:Sides,scale:number):Promise<Uint8Array> {
-  const job=String(++sequence)
-  return new Promise<Uint8Array>((resolve,reject)=>{
-    const timer=setTimeout(()=>{
-      pending.delete(job)
-      reject(new Error('A extensão da borda demorou demais.'))
-    },45000) as unknown as number
-    pending.set(job,{resolve,reject,timer})
-    figma.ui.postMessage({type:'edge-request',job,bytes:Array.from(bytes),width:w,height:h,outer:b,scale})
-  })
 }
 function downloadFile(filename:string,mime:string,bytes:Uint8Array):Promise<void> {
   const job=String(++sequence)
@@ -327,14 +314,6 @@ figma.showUI(__html__,{width:WIDTH,height:700})
 figma.root.setRelaunchData({'f394038b-4a32-4ad7-b82c-4530431c9c28':'Abrir Bleed Pro'})
 figma.ui.onmessage=async(message:UiMessage)=>{
   if(message.type==='resize'){figma.ui.resize(WIDTH,Math.max(360,Math.min(920,Math.round(message.height))));return}
-  if(message.type==='edge-result'){
-    const w=pending.get(message.job)
-    if(!w) return
-    clearTimeout(w.timer);pending.delete(message.job)
-    if(message.error||!message.bytes)w.reject(new Error(message.error||'Falha ao gerar borda'))
-    else w.resolve(new Uint8Array(message.bytes))
-    return
-  }
   if(message.type==='download-ack'){
     const w=downloads.get(message.job)
     if(!w) return
