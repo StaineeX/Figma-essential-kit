@@ -17,8 +17,7 @@ const REFERENCE_FRAME_WIDTH_PT = 200 * PT_PER_MM;
 const REFERENCE_FRAME_HEIGHT_PT = 70 * PT_PER_MM;
 const FIGMA_PX_TO_PT = 72 / 96;
 const CROP_EXTRA_MM = 4.525;
-const CROP_STROKE_PT = 0.25;
-const CROP_HALO_PT = 1.25;
+const CROP_STROKE_PT = 0.5;
 
 // Tamanhos de corte mais usados (mm, retrato). A orientação segue a do frame.
 const PAGE_SIZES_MM = Object.freeze({
@@ -159,8 +158,9 @@ function appendBleedBackground(parent, node, geometry, scale, contentScale = 1) 
     rect.fills = fills;
   }
 
-  // 2) Camada de fundo (ex.: foto) aumentada por cima, também cobrindo a sangria.
-  const backgroundLayer = findFullFrameBackgroundLayer(node);
+  // 2) A arte inteira, ampliada por trás, cobrindo a sangria. Só o fundo deixava
+  // cor diferente e emenda (sobreposições, gradientes e máscaras ficavam de fora).
+  const backgroundLayer = node;
   if (!backgroundLayer || typeof backgroundLayer.clone !== 'function' || typeof backgroundLayer.rescale !== 'function') return rect;
 
   const backgroundClone = backgroundLayer.clone();
@@ -269,7 +269,6 @@ async function exportWithOwnMarks(node, sheet, pxToPt, widthPt, heightPt, settin
       const x1 = x0 + sheet.trim.width * pxToPt;
       const y1 = y0 + sheet.trim.height * pxToPt;
       for (const [t, color, name] of [
-        [CROP_HALO_PT, { r: 1, g: 1, b: 1 }, 'Marca de corte (contorno)'],
         [CROP_STROKE_PT, { r: 0, g: 0, b: 0 }, 'Marca de corte'],
       ]) {
         for (const y of [y0, y1]) {
@@ -350,9 +349,8 @@ async function makePrintPdf(node, settings) {
     artwork.clipsContent = false; // FRAME, COMPONENT e INSTANCE têm clipsContent
 
     if (settings.cropMarks) {
-      // Contorno branco embaixo, linha preta em cima: legível sobre arte clara ou escura.
+      // Marcas só pretas (o contorno branco cobria a linha e ela parecia branca).
       for (const [thicknessPt, color, name] of [
-        [CROP_HALO_PT, { r: 1, g: 1, b: 1 }, 'Marca de corte (contorno)'],
         [CROP_STROKE_PT, { r: 0, g: 0, b: 0 }, 'Marca de corte'],
       ]) {
         const thickness = thicknessPt * scale;

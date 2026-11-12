@@ -37,8 +37,8 @@ function mockFigma() {
 }
 
 function frame(width, height, extra = {}) {
-  const art = { width, height, rescale(s) { this.width *= s; this.height *= s; }, remove() {} };
-  return { type: 'FRAME', width, height, fills: [], children: [], clone: () => art, ...extra };
+  const clone = () => ({ width, height, rescale(s) { this.width *= s; this.height *= s; }, remove() {} });
+  return { type: 'FRAME', width, height, fills: [], children: [], clone, rescale() {}, ...extra };
 }
 
 for (const [label, settings, w, h, expectW, expectH] of [
@@ -104,7 +104,7 @@ test('fundo em imagem do frame também vai até a borda da folha', async () => {
   close(bg.width, 210 * MM + 2 * (5 + 4.525) * MM, 'A4 + sangria + área das marcas');
 });
 
-test('sem cor de fundo, estende a camada mais de baixo cobrindo toda a sangria', async () => {
+test('sem cor de fundo, estende a arte inteira cobrindo toda a sangria', async () => {
   const { layers, flatten } = mockFigma();
   const photo = { name: 'foto', type: 'RECTANGLE', x: 50, y: 50, width: 400, height: 300, visible: true, rescale() {} };
   photo.clone = () => ({ ...photo, name: undefined, rescale(s) { this.width *= s; this.height *= s; } });
@@ -193,4 +193,22 @@ test('API printkit com corte: tira guias/marcas do Bleed Pro e põe as marcas do
   for (const m of marks.filter((l) => l.width > l.height)) {
     assert.ok([x0, x1].some((x) => Math.abs(m.x - x) < 0.01 || Math.abs(m.x + m.width - x) < 0.01), 'encosta no corte');
   }
+});
+
+test('A5: área útil 148 × 210 mm e sangria de 5 mm por fora; marcas só pretas', async () => {
+  const { layers, sheet, flatten } = mockFigma();
+  const pxPerMm = 96 / 25.4;
+  try {
+    await makePrintPdf(frame(148 * pxPerMm, 210 * pxPerMm), normalizeSettings({ pageSize: 'A5', bleed: 5, cropMarks: true }));
+  } finally { delete global.figma; }
+  flatten();
+  const extra = 4.525 * MM;
+  const art = layers.find((l) => !l.name);
+  close(art.width / MM, 148, 'largura útil A5 (mm)');
+  close(art.height / MM, 210, 'altura útil A5 (mm)');
+  close((art.x - extra) / MM, 5, 'sangria de 5 mm à esquerda, fora da área útil');
+  close((sheet().width - extra - (art.x + art.width)) / MM, 5, 'sangria de 5 mm à direita, fora da área útil');
+  const marks = layers.filter((l) => /Marca de corte/.test(l.name || ''));
+  assert.equal(marks.length, 8, 'só as 8 marcas pretas, sem contorno branco');
+  for (const m of marks) assert.deepEqual(m.fills[0].color, { r: 0, g: 0, b: 0 });
 });

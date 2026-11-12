@@ -98,7 +98,7 @@ function addCropMarks(sheet:FrameNode,slug:number,b:Sides,w:number,h:number):voi
   // da sangria), igual ao PDF de referência da gráfica.
   const tx=slug+b.left, ty=slug+b.top, rx=tx+w, by=ty+h
   const W=sheet.width,H=sheet.height
-  for(const [lw,color] of [[1.25,{r:1,g:1,b:1}],[.5,{r:0,g:0,b:0}]] as [number,RGB][]) {
+  for(const [lw,color] of [[.5,{r:0,g:0,b:0}]] as [number,RGB][]) { // só preto
     for(const x of [tx,rx]) {
       line(c,'Marca superior',x-lw/2,0,lw,ty,color)
       line(c,'Marca inferior',x-lw/2,by,lw,H-by,color)
@@ -136,8 +136,8 @@ async function addEdge(sheet:FrameNode,source:FrameNode,slug:number,b:Sides):Pro
   }
   const t=.5
   // Camada que cobre a prancheta inteira; senão, a camada mais de baixo (o fundo).
-  const bg=source.children.find(n=>n.visible&&n.type!=='TEXT'&&n.x<=t&&n.y<=t&&n.x+n.width>=source.width-t&&n.y+n.height>=source.height-t)
-    ||source.children.find(n=>n.visible&&n.type!=='TEXT')
+  // Arte inteira ampliada por trás: mesma cor da borda, sem emenda.
+  const bg:FrameNode=source
   if(bg&&'rescale' in bg) {
     const c=bg.clone() as SceneNode&{rescale(s:number):void}
     sheet.insertChild(fills.length?1:0,c)
@@ -146,7 +146,7 @@ async function addEdge(sheet:FrameNode,source:FrameNode,slug:number,b:Sides):Pro
     c.x=x+(w-c.width)/2
     c.y=y+(h-c.height)/2
     c.locked=true
-    return 'Fundo "'+bg.name+'" estendido na sangria. Revise elementos que encostam no corte.'
+    return 'Arte estendida na sangria.'
   }
   if(fills.length) return 'Cor de fundo da prancheta estendida na sangria. Elementos que encostam no corte precisam de sangria própria.'
   return 'Sem fundo para estender: preencha a sangria manualmente.'
