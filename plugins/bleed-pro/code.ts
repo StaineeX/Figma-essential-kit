@@ -134,20 +134,27 @@ async function addEdge(sheet:FrameNode,source:FrameNode,slug:number,b:Sides):Pro
     r.fills=fills
     sheet.insertChild(0,r);r.locked=true
   }
-  const t=.5
-  // Camada que cobre a prancheta inteira; senão, a camada mais de baixo (o fundo).
-  // Arte inteira ampliada por trás: mesma cor da borda, sem emenda.
-  const bg:FrameNode=source
-  if(bg&&'rescale' in bg) {
-    const c=bg.clone() as SceneNode&{rescale(s:number):void}
-    sheet.insertChild(fills.length?1:0,c)
-    c.name='SANGRIA • '+bg.name
-    c.rescale(Math.max(w/bg.width,h/bg.height))
-    c.x=x+(w-c.width)/2
-    c.y=y+(h-c.height)/2
-    c.locked=true
-    return 'Arte estendida na sangria.'
+  // Sangria espelhada: cada faixa fora do corte recebe o espelho da arte junto
+  // àquela borda. Cor contínua sem ampliar (ampliar duplicava logos e textos
+  // perto da borda em peças compridas). 4 lados + 4 cantos, atrás da arte.
+  const tx=x+b.left,ty=y+b.top,sw=source.width,sh=source.height
+  const cols:[number,number,number,number][]=[[x,b.left,-1,tx],[tx,sw,1,tx],[tx+sw,b.right,-1,tx+2*sw]]
+  const rows:[number,number,number,number][]=[[y,b.top,-1,ty],[ty,sh,1,ty],[ty+sh,b.bottom,-1,ty+2*sh]]
+  let index=fills.length?1:0
+  for(const [cx,cw,fx,ox] of cols) {
+    for(const [cy,ch,fy,oy] of rows) {
+      if((fx===1&&fy===1)||cw<=0||ch<=0) continue
+      const clip=figma.createFrame()
+      sheet.insertChild(index++,clip)
+      clip.name='SANGRIA • ESPELHO'
+      clip.resize(cw,ch);clip.x=cx;clip.y=cy;clip.fills=[];clip.clipsContent=true
+      const mirror=source.clone()
+      clip.appendChild(mirror)
+      mirror.relativeTransform=[[fx,0,ox-cx],[0,fy,oy-cy]]
+      clip.locked=true
+    }
   }
+  if(index>(fills.length?1:0)) return 'Sangria espelhada a partir das bordas da arte.'
   if(fills.length) return 'Cor de fundo da prancheta estendida na sangria. Elementos que encostam no corte precisam de sangria própria.'
   return 'Sem fundo para estender: preencha a sangria manualmente.'
 }

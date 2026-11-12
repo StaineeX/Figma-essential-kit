@@ -104,22 +104,29 @@ test('fundo em imagem do frame também vai até a borda da folha', async () => {
   close(bg.width, 210 * MM + 2 * (5 + 4.525) * MM, 'A4 + sangria + área das marcas');
 });
 
-test('sem cor de fundo, estende a arte inteira cobrindo toda a sangria', async () => {
-  const { layers, flatten } = mockFigma();
-  const photo = { name: 'foto', type: 'RECTANGLE', x: 50, y: 50, width: 400, height: 300, visible: true, rescale() {} };
-  photo.clone = () => ({ ...photo, name: undefined, rescale(s) { this.width *= s; this.height *= s; } });
-  const src = frame(610, 845, { children: [photo] });
+test('sangria espelhada: 8 molduras cobrem tudo fora do corte, sem ampliar a arte', async () => {
+  const { layers, sheet, flatten } = mockFigma();
   try {
-    await makePrintPdf(src, normalizeSettings({ pageSize: 'frame', bleed: 5, cropMarks: true }));
+    await makePrintPdf(frame(1200, 400), normalizeSettings({ pageSize: 'frame', bleed: 5, cropMarks: true }));
   } finally { delete global.figma; }
+  const mirrors = layers.filter((l) => l.name === 'Espelho');
+  const clips = layers.filter((l) => l.name === 'Sangria espelhada');
+  const leftClipX = Math.min(...clips.map((c) => c.x));
   flatten();
-  const bleed = 5 * MM;
-  const extra = 4.525 * MM;
-  const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
-  assert.ok(bg, 'fundo estendido existe');
-  assert.ok(bg.x <= 0.01 && bg.y <= 0.01, 'cobre o canto da folha');
-  assert.ok(bg.x + bg.width >= extra + 610 * 0.75 + 2 * bleed - 0.01, 'cobre a sangria direita');
-  assert.ok(bg.y + bg.height >= extra + 845 * 0.75 + 2 * bleed - 0.01, 'cobre a sangria inferior');
+  assert.equal(clips.length, 8, '4 lados + 4 cantos');
+  const W = sheet().width, H = sheet().height;
+  const m = (5 + 4.525) * MM, w = 900, h = 300; // 1200 × 400 px a 96 px/pol
+  const area = clips.reduce((sum, c) => sum + c.width * c.height, 0);
+  close(area, W * H - w * h, 'molduras cobrem exatamente a folha fora do corte');
+  for (const c of clips) assert.equal(c.clipsContent, true);
+  for (const mir of mirrors) {
+    const [[sx], [, sy]] = mir.relativeTransform;
+    assert.ok(Math.abs(sx) === 1 && Math.abs(sy) === 1, 'espelho sem ampliar');
+    assert.ok(sx === -1 || sy === -1, 'refletido em pelo menos um eixo');
+  }
+  // Lado esquerdo: espelho refletido exatamente na linha de corte (x = m).
+  const left = mirrors.find((mir) => mir.relativeTransform[0][0] === -1 && mir.relativeTransform[1][1] === 1 && mir.parent.x === leftClipX);
+  close(left.parent.x + left.relativeTransform[0][2], m, 'eixo do espelho = corte esquerdo');
 });
 
 test('elementos que passam da borda vão até a borda da folha', async () => {

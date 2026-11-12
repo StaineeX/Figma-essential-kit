@@ -158,21 +158,52 @@ function appendBleedBackground(parent, node, geometry, scale, contentScale = 1) 
     rect.fills = fills;
   }
 
-  // 2) A arte inteira, ampliada por trás, cobrindo a sangria. Só o fundo deixava
-  // cor diferente e emenda (sobreposições, gradientes e máscaras ficavam de fora).
-  const backgroundLayer = node;
-  if (!backgroundLayer || typeof backgroundLayer.clone !== 'function' || typeof backgroundLayer.rescale !== 'function') return rect;
+  // 2) Sangria espelhada: cada faixa fora do corte recebe o espelho da arte junto
+  // àquela borda. Mantém a cor contínua sem ampliar (ampliar duplicava logos e
+  // textos perto da borda em peças compridas).
+  const x0 = geometry.marginPt * scale;
+  const y0 = geometry.marginPt * scale;
+  const pageW = x0 * 2 + scaledNode.width;
+  const pageH = y0 * 2 + scaledNode.height;
+  const last = appendMirrorBleed(parent, node, x0, y0, scaledNode.width, scaledNode.height, pageW, pageH, contentScale);
+  return last || rect;
+}
 
-  const backgroundClone = backgroundLayer.clone();
-  parent.appendChild(backgroundClone);
-  backgroundClone.name = 'Fundo estendido para sangria';
-  const scaleX = bounds.width / Number(backgroundLayer.width);
-  const scaleY = bounds.height / Number(backgroundLayer.height);
-  backgroundClone.rescale(Math.max(scaleX, scaleY));
-  // Centraliza: o fundo aumentado cobre toda a área de sangria.
-  backgroundClone.x = geometry.marginPt * scale + bounds.x + (bounds.width - Number(backgroundClone.width)) / 2;
-  backgroundClone.y = geometry.marginPt * scale + bounds.y + (bounds.height - Number(backgroundClone.height)) / 2;
-  return backgroundClone;
+// 8 molduras (4 lados + 4 cantos) fora do corte, cada uma com a arte refletida
+// na borda vizinha. Retorna a última criada.
+function appendMirrorBleed(parent, node, x0, y0, w, h, pageW, pageH, contentScale) {
+  if (!node || typeof node.clone !== 'function') return null;
+  const cols = [
+    { at: 0, size: x0, flip: -1, origin: x0 },
+    { at: x0, size: w, flip: 1, origin: x0 },
+    { at: x0 + w, size: pageW - x0 - w, flip: -1, origin: x0 + 2 * w },
+  ];
+  const rows = [
+    { at: 0, size: y0, flip: -1, origin: y0 },
+    { at: y0, size: h, flip: 1, origin: y0 },
+    { at: y0 + h, size: pageH - y0 - h, flip: -1, origin: y0 + 2 * h },
+  ];
+  let last = null;
+  for (const col of cols) {
+    for (const row of rows) {
+      if ((col.flip === 1 && row.flip === 1) || col.size <= 0 || row.size <= 0) continue;
+      const clip = figma.createFrame();
+      parent.appendChild(clip);
+      clip.name = 'Sangria espelhada';
+      clip.resize(col.size, row.size);
+      clip.x = col.at;
+      clip.y = row.at;
+      clip.fills = [];
+      clip.clipsContent = true;
+      const mirror = node.clone();
+      if (contentScale !== 1) mirror.rescale(contentScale);
+      clip.appendChild(mirror);
+      mirror.name = 'Espelho';
+      mirror.relativeTransform = [[col.flip, 0, col.origin - col.at], [0, row.flip, row.origin - row.at]];
+      last = clip;
+    }
+  }
+  return last;
 }
 
 // Exporta um frame temporário do Figma, com a arte clonada e as marcas.
