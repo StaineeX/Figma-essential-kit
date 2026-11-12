@@ -6,6 +6,7 @@ const {
   exportPlannedFrames,
   makePrintPdf,
   printGeometry,
+  cropMarkSegments,
   normalizeSettings,
   planExports,
   safeFileName,
@@ -122,6 +123,29 @@ test('matches the exact 20 x 7 cm reference size when the source frame is oversi
   assert.ok(Math.abs(geometry.contentScale - 0.75) < 0.001);
   assert.ok(Math.abs(geometry.pageWidthPt - 620.9291338582677) < 0.001);
   assert.ok(Math.abs(geometry.pageHeightPt - 252.42519685039372) < 0.001);
+});
+
+test('uses a custom page size in mm and rejects missing or mismatched sizes', () => {
+  const mm = 72 / 25.4;
+  const geometry = printGeometry(100 * mm, 50 * mm, normalizeSettings({
+    pageSize: 'custom', customWidth: 200, customHeight: 100, bleed: 0, cropMarks: false,
+  }));
+  assert.ok(Math.abs(geometry.widthPt - 200 * mm) < 0.001);
+  assert.ok(Math.abs(geometry.contentScale - 2) < 0.001);
+  assert.deepEqual(
+    validateSettings(normalizeSettings({ pageSize: 'custom', customWidth: '' }), 1),
+    ['Informe largura e altura personalizadas maiores que zero.'],
+  );
+});
+
+test('crop marks run from the trim corner to the page edge, over the artwork', () => {
+  const geometry = printGeometry(100, 50, normalizeSettings({ bleed: 5, cropMarks: true }));
+  const { marginPt: m, pageWidthPt: W, pageHeightPt: H } = geometry;
+  const marks = cropMarkSegments(geometry);
+  assert.equal(marks.length, 8);
+  assert.deepEqual(marks[0], [[0, m], [m, m]]);
+  assert.deepEqual(marks[1], [[m + 100, m], [W, m]]);
+  assert.deepEqual(marks[7], [[m + 100, m + 50], [m + 100, H]]);
 });
 
 test('keeps 5 mm physical bleed when exporting an oversized 20 x 7 frame', async () => {

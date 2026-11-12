@@ -117,6 +117,7 @@
       .status[data-state="error"]::before { background: var(--danger); }
       @keyframes pulse { 50% { opacity: .35; } }
 
+      [hidden] { display: none !important; }
       .section { margin-top: 14px; }
       .section-heading {
         display: flex;
@@ -314,7 +315,18 @@
               <option value="A4">A4 · 210 × 297 mm</option>
               <option value="A3">A3 · 297 × 420 mm</option>
               <option value="Letter">Carta · 216 × 279 mm</option>
+              <option value="custom">Personalizado…</option>
             </select>
+            <div id="customSize" class="inline-fields" style="margin-top: 8px" hidden>
+              <div>
+                <label class="field-label" for="customWidth"><span>Largura</span><small>mm</small></label>
+                <div class="input-with-suffix"><input id="customWidth" type="number" min="1" step="0.1" inputmode="decimal" /><span>mm</span></div>
+              </div>
+              <div>
+                <label class="field-label" for="customHeight"><span>Altura</span><small>mm</small></label>
+                <div class="input-with-suffix"><input id="customHeight" type="number" min="1" step="0.1" inputmode="decimal" /><span>mm</span></div>
+              </div>
+            </div>
           </div>
           <div class="field">
             <div class="inline-fields">
@@ -385,6 +397,8 @@
           scope: state.scope,
           colorMode: $('.mode-button[aria-pressed="true"]')?.dataset.color || state.settings.colorMode,
           pageSize: $('#pageSize').value,
+          customWidth: $('#customWidth').value,
+          customHeight: $('#customHeight').value,
           bleed: $('#bleed').value,
           cropMarks: $('#cropMarks').checked,
         };
@@ -394,6 +408,9 @@
         state.settings = { ...state.settings, ...settings };
         $$('.mode-button').forEach((button) => { button.setAttribute('aria-pressed', String(button.dataset.color === state.settings.colorMode)); });
         $('#pageSize').value = state.settings.pageSize || 'frame';
+        $('#customWidth').value = state.settings.customWidth ?? '';
+        $('#customHeight').value = state.settings.customHeight ?? '';
+        $('#customSize').hidden = state.settings.pageSize !== 'custom';
         $('#bleed').value = state.settings.bleed ?? 0;
         $('#cropMarks').checked = Boolean(state.settings.cropMarks);
         $$('.preset').forEach((button) => { button.dataset.active = String(button.dataset.preset === state.settings.preset); });
@@ -444,6 +461,9 @@
         const errors = [];
         if (!state.frames.length) errors.push('Selecione pelo menos um frame para exportar.');
         if (!Number.isFinite(bleed) || bleed < 0) errors.push('O bleed precisa ser um número maior ou igual a zero.');
+        if ($('#pageSize').value === 'custom' && !(Number($('#customWidth').value) > 0 && Number($('#customHeight').value) > 0)) {
+          errors.push('Informe largura e altura personalizadas maiores que zero.');
+        }
         return errors;
       }
 
@@ -453,7 +473,11 @@
         state.settings = settings;
         $('#summaryTitle').textContent = count ? (state.scope === 'page' ? 'Página atual pronta' : 'Seleção pronta') : 'Aguardando seleção';
         $('#summaryCount').textContent = `${count} ${count === 1 ? 'arquivo' : 'arquivos'}`;
-        const pageLabel = settings.pageSize === 'reference' ? '5 mm · referência' : settings.pageSize === 'frame' ? 'tamanho do frame' : settings.pageSize;
+        $('#customSize').hidden = settings.pageSize !== 'custom';
+        const pageLabel = settings.pageSize === 'reference' ? '5 mm · referência'
+          : settings.pageSize === 'frame' ? 'tamanho do frame'
+          : settings.pageSize === 'custom' ? `${settings.customWidth || '?'} × ${settings.customHeight || '?'} mm`
+          : settings.pageSize;
         $('#summaryDetails').textContent = count ? `${settings.colorMode} · ${pageLabel} · bleed ${settings.bleed || 0} mm · ${settings.cropMarks ? 'com' : 'sem'} marcas` : 'Escolha um frame para ver os detalhes.';
         $('#exportButton').disabled = !count || state.busy || validateLocal().length > 0;
       }
@@ -500,7 +524,7 @@
         renderSummary();
       }));
       $$('.preset').forEach((button) => button.addEventListener('click', () => applyPreset(button.dataset.preset)));
-      ['#pageSize', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
+      ['#pageSize', '#customWidth', '#customHeight', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
         state.settings = { ...readSettings(), preset: 'custom' };
         saveSettings();
         clearMessage();

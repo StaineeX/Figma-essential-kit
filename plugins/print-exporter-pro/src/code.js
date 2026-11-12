@@ -16,13 +16,17 @@ const PT_PER_MM = 72 / 25.4;
 const REFERENCE_FRAME_WIDTH_PT = 200 * PT_PER_MM;
 const REFERENCE_FRAME_HEIGHT_PT = 70 * PT_PER_MM;
 const CROP_EXTRA_MM = 4.525;
-const CROP_GAP_MM = 0.75;
-const CROP_LENGTH_MM = 3;
-const CROP_STROKE_PT = 0.5;
+const CROP_STROKE_PT = 0.25;
+const CROP_HALO_PT = 1.25;
+
+function targetSizePt(widthPt, heightPt, settings) {
+  if (settings.pageSize === 'reference') return [REFERENCE_FRAME_WIDTH_PT, REFERENCE_FRAME_HEIGHT_PT];
+  if (settings.pageSize === 'custom') return [settings.customWidth * PT_PER_MM, settings.customHeight * PT_PER_MM];
+  return [widthPt, heightPt];
+}
 
 function printGeometry(widthPt, heightPt, settings) {
-  const targetWidthPt = settings.pageSize === 'reference' ? REFERENCE_FRAME_WIDTH_PT : widthPt;
-  const targetHeightPt = settings.pageSize === 'reference' ? REFERENCE_FRAME_HEIGHT_PT : heightPt;
+  const [targetWidthPt, targetHeightPt] = targetSizePt(widthPt, heightPt, settings);
   const contentScaleX = targetWidthPt / widthPt;
   const contentScaleY = targetHeightPt / heightPt;
   const bleedPt = settings.bleed * PT_PER_MM;
@@ -41,22 +45,22 @@ function printGeometry(widthPt, heightPt, settings) {
   };
 }
 
+// Marcas saem do canto do corte até a borda da página, por cima da arte
+// (igual ao PDF de referência da gráfica), para o sensor da máquina ler.
 function cropMarkSegments(geometry) {
-  const { widthPt, heightPt, bleedPt, marginPt } = geometry;
-  const gap = CROP_GAP_MM * PT_PER_MM;
-  const length = CROP_LENGTH_MM * PT_PER_MM;
+  const { widthPt, heightPt, marginPt, pageWidthPt, pageHeightPt } = geometry;
   const x0 = marginPt;
   const x1 = marginPt + widthPt;
   const y0 = marginPt;
   const y1 = marginPt + heightPt;
   const marks = [];
   for (const y of [y0, y1]) {
-    marks.push([[x0 - bleedPt - gap - length, y], [x0 - bleedPt - gap, y]]);
-    marks.push([[x1 + bleedPt + gap, y], [x1 + bleedPt + gap + length, y]]);
+    marks.push([[0, y], [x0, y]]);
+    marks.push([[x1, y], [pageWidthPt, y]]);
   }
   for (const x of [x0, x1]) {
-    marks.push([[x, y0 - bleedPt - gap - length], [x, y0 - bleedPt - gap]]);
-    marks.push([[x, y1 + bleedPt + gap], [x, y1 + bleedPt + gap + length]]);
+    marks.push([[x, 0], [x, y0]]);
+    marks.push([[x, y1], [x, pageHeightPt]]);
   }
   return marks;
 }
@@ -161,6 +165,10 @@ async function makePrintPdf(node, settings) {
   if (settings.pageSize === 'reference' && Math.abs(geometry.contentScaleX - geometry.contentScaleY) > 0.001) {
     throw new Error('O frame precisa manter a proporção 20 × 7 cm para usar o tamanho de referência.');
   }
+  // 1% de tolerância absorve arredondamento de mm digitado à mão.
+  if (settings.pageSize === 'custom' && Math.abs(geometry.contentScaleX / geometry.contentScaleY - 1) > 0.01) {
+    throw new Error(`O frame precisa ter a mesma proporção de ${settings.customWidth} × ${settings.customHeight} mm.`);
+  }
   const scale = 1;
   let printFrame;
   let artwork;
@@ -186,17 +194,27 @@ async function makePrintPdf(node, settings) {
     artwork.rotation = 0;
 
     if (settings.cropMarks) {
-      const thickness = CROP_STROKE_PT * scale;
-      for (const [start, end] of cropMarkSegments(geometry)) {
-        const x0 = Math.min(start[0], end[0]) * scale;
-        const x1 = Math.max(start[0], end[0]) * scale;
-        const y0 = Math.min(start[1], end[1]) * scale;
-        const y1 = Math.max(start[1], end[1]) * scale;
-        appendSolidRectangle(
-          printFrame, 'Marca de corte', x0, y0,
-          Math.max(thickness, x1 - x0), Math.max(thickness, y1 - y0),
-          { r: 0, g: 0, b: 0 },
-        );
+      // Contorno branco embaixo, linha preta em cima: legível sobre arte clara ou escura.
+      for (const [thicknessPt, color, name] of [
+        [CROP_HALO_PT, { r: 1, g: 1, b: 1 }, 'Marca de corte (contorno)'],
+        [CROP_STROKE_PT, { r: 0, g: 0, b: 0 }, 'Marca de corte'],
+      ]) {
+        const thickness = thicknessPt * scale;
+        for (const [start, end] of cropMarkSegments(geometry)) {
+          const horizontal = start[1] === end[1];
+          const x0 = Math.min(start[0], end[0]) * scale;
+          const x1 = Math.max(start[0], end[0]) * scale;
+          const y0 = Math.min(start[1], end[1]) * scale;
+          const y1 = Math.max(start[1], end[1]) * scale;
+          appendSolidRectangle(
+            printFrame, name,
+            horizontal ? x0 : x0 - thickness / 2,
+            horizontal ? y0 - thickness / 2 : y0,
+            horizontal ? x1 - x0 : thickness,
+            horizontal ? thickness : y1 - y0,
+            color,
+          );
+        }
       }
     }
 
@@ -222,6 +240,8 @@ function normalizeSettings(input = {}) {
     preset: typeof source.preset === 'string' ? source.preset : DEFAULT_SETTINGS.preset,
     pageSize: typeof source.pageSize === 'string' ? source.pageSize : DEFAULT_SETTINGS.pageSize,
     bleed,
+    customWidth: Number(source.customWidth),
+    customHeight: Number(source.customHeight),
     cropMarks: source.cropMarks === undefined ? DEFAULT_SETTINGS.cropMarks : Boolean(source.cropMarks),
   };
 }
@@ -233,6 +253,10 @@ function validateSettings(settings, frameCount) {
   }
   if (!Number.isFinite(settings.bleed) || settings.bleed < 0) {
     errors.push('O bleed precisa ser um número maior ou igual a zero.');
+  }
+  if (settings.pageSize === 'custom'
+    && !(settings.customWidth > 0 && settings.customHeight > 0)) {
+    errors.push('Informe largura e altura personalizadas maiores que zero.');
   }
   return errors;
 }

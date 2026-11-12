@@ -149,29 +149,34 @@ function downloadFile(filename, mime, bytes) {
         figma.ui.postMessage({ type: 'download', job, filename, mime, bytes: Array.from(bytes) });
     });
 }
+// Sangria vetorial: estende o fundo da própria prancheta (cor/imagem do frame
+// e a camada que cobre o frame inteiro). Sem imagem esticada por cima e sem
+// fundo branco, que geravam emendas/linhas brancas na impressão.
 async function addEdge(sheet, source, slug, b) {
-    try {
-        const maxDim = Math.max(source.width, source.height);
-        const scale = Math.min(2, 2500 / maxDim);
-        if (scale < .2)
-            throw new Error('Prancheta grande demais para a extensão automática.');
-        const png = await source.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
-        if (png.length > 18000000)
-            throw new Error('Imagem de borda acima do limite de memória.');
-        const padded = await edgeAsset(png, source.width, source.height, b, scale);
-        const img = figma.createImage(padded);
-        const r = rectangle(sheet, 'EXTENSÃO AUTOMÁTICA • REVISAR BORDAS', slug, slug, source.width + b.left + b.right, source.height + b.top + b.bottom, undefined, { type: 'IMAGE', imageHash: img.hash, scaleMode: 'FILL' });
+    const x = slug, y = slug;
+    const w = source.width + b.left + b.right, h = source.height + b.top + b.bottom;
+    const fills = Array.isArray(source.fills) ? source.fills.filter(p => p.visible !== false) : [];
+    if (fills.length) {
+        const r = rectangle(sheet, 'SANGRIA • FUNDO DA PRANCHETA', x, y, w, h);
+        r.fills = fills;
         sheet.insertChild(0, r);
         r.locked = true;
-        return 'Borda prolongada automaticamente por repetição dos pixels das extremidades. Revise fotos, textos e detalhes próximos ao corte.';
     }
-    catch (e) {
-        const err = e instanceof Error ? e.message : String(e);
-        const background = rectangle(sheet, 'ÁREA DE SANGRIA • PREENCHER MANUALMENTE', slug, slug, source.width + b.left + b.right, source.height + b.top + b.bottom, undefined, { type: 'SOLID', color: { r: 1, g: 1, b: 1 } });
-        sheet.insertChild(0, background);
-        background.locked = true;
-        return 'Extensão não concluída: ' + err + ' A sangria precisa de ajuste manual.';
+    const t = .5;
+    const bg = source.children.find(n => n.visible && n.type !== 'TEXT' && n.x <= t && n.y <= t && n.x + n.width >= source.width - t && n.y + n.height >= source.height - t);
+    if (bg && 'rescale' in bg) {
+        const c = bg.clone();
+        sheet.insertChild(fills.length ? 1 : 0, c);
+        c.name = 'SANGRIA • ' + bg.name;
+        c.rescale(Math.max(w / bg.width, h / bg.height));
+        c.x = x + (w - c.width) / 2;
+        c.y = y + (h - c.height) / 2;
+        c.locked = true;
+        return 'Fundo "' + bg.name + '" estendido na sangria. Revise elementos que encostam no corte.';
     }
+    if (fills.length)
+        return 'Cor de fundo da prancheta estendida na sangria. Elementos que encostam no corte precisam de sangria própria.';
+    return 'Sem fundo para estender: preencha a sangria manualmente.';
 }
 function pageAbs(node) {
     const t = node.absoluteTransform;
