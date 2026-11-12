@@ -1,0 +1,2 @@
+FIGAI 0.1.0
+Local-only MVP

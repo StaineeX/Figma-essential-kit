@@ -1,0 +1,9 @@
+{
+  "name": "print-exporter-pro",
+  "description": "Plugin do Figma para exportação de PDFs com sangria e marcas de corte",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/code.js && node --test"
+  }
+}

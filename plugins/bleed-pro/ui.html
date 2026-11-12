@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{color-scheme:light;--bg:var(--figma-color-bg,#f7f7f7);--panel:var(--figma-color-bg-secondary,#fff);--line:var(--figma-color-border,#e5e5e5);--text:var(--figma-color-text,#1e1e1e);--muted:var(--figma-color-text-secondary,#6b6b6b);--accent:var(--figma-color-bg-brand,#0d99ff);--accent-text:var(--figma-color-text-onbrand,#fff);--danger:var(--figma-color-text-danger,#d7373f)}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:12px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    body{overflow:auto}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.55}
+    #plugin-root{min-height:100vh}
+    main{padding:16px 16px 112px}
+    .intro{padding-bottom:12px}
+    .intro strong{display:block;margin-bottom:3px;font-size:15px}
+    .intro p{margin:0;color:var(--muted);line-height:1.45}
+    .section{padding:12px 0;border-top:1px solid var(--line)}
+    .section-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .section-heading h2{margin:0;font-size:12px}
+    .section-heading span{color:var(--muted);font-size:11px}
+    .field{display:grid;gap:5px;min-width:0}
+    .field label{color:var(--muted);font-size:11px;font-weight:600}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+    .side-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+    .control{width:100%;height:32px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--text);outline:none}
+    .control:focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent)}
+    .hint{margin:6px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
+    .action-link{border:0;padding:0;background:none;color:var(--accent);font-size:11px}
+    .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:32px}
+    .toggle input{width:16px;height:16px;accent-color:var(--accent)}
+    .status{margin-top:12px;padding:8px 10px;border-radius:7px;background:var(--panel);color:var(--muted);font-size:11px;line-height:1.45;white-space:pre-wrap}
+    .status.error{color:var(--danger)}
+    #log{max-height:95px;overflow:auto}
+    footer{position:fixed;right:0;bottom:0;left:0;padding:10px 16px;background:var(--bg);box-shadow:0 -1px 0 var(--line)}
+    .primary,.secondary{width:100%;min-height:34px;border:0;border-radius:7px;font-weight:700}
+    .primary{background:var(--accent);color:var(--accent-text)}
+    .secondary{background:var(--panel);color:var(--text);border:1px solid var(--line)}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div id="plugin-root">
+    <main>
+      <header class="intro">
+        <strong>Bleed Pro</strong>
+        <p>Sangria real para impressão. Mantém a prancheta original intacta e bloqueia as guias na cópia.</p>
+      </header>
+
+      <section class="section" aria-labelledby="frames-title">
+        <div class="section-heading"><h2 id="frames-title">Pranchetas</h2><span id="selection">Verificando seleção…</span></div>
+        <div class="field">
+          <label for="scope">Aplicar em</label>
+          <select id="scope" class="control">
+            <option value="selection">Selecionadas</option>
+            <option value="page">Página atual</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="measure-title">
+        <div class="section-heading"><h2 id="measure-title">Medidas e escala</h2><span id="unit-note">cm</span></div>
+        <div class="two">
+          <div class="field"><label for="unit">Unidade da sangria</label><select id="unit" class="control"><option value="mm">mm</option><option value="cm" selected>cm</option><option value="px">px</option></select></div>
+          <div class="field"><label for="basePpi">Escala (px/pol)</label><input id="basePpi" class="control" type="number" value="72" min="36" max="1200" step="1" inputmode="decimal"></div>
+          <div class="field"><label for="dpi">Saída (DPI)</label><input id="dpi" class="control" type="number" value="300" min="72" max="1200" step="1" inputmode="decimal"></div>
+        </div>
+        <p class="hint">A unidade vale para a sangria externa e a margem interna. 0,3 cm = 3 mm; em px, o valor depende da escala da arte.</p>
+      </section>
+
+      <section class="section" aria-labelledby="outer-title">
+        <div class="section-heading"><h2 id="outer-title">Sangria externa</h2><button class="action-link" id="same-out" type="button">Igualar lados</button></div>
+        <p class="hint">Aumenta o tamanho preparado para impressão.</p>
+        <div class="side-grid">
+          <div class="field"><label for="ot">Superior</label><input id="ot" class="control" type="number" value="0.3" min="0" step="0.1" inputmode="decimal"></div>
+          <div class="field"><label for="or">Direita</label><input id="or" class="control" type="number" value="0.3" min="0" step="0.1" inputmode="decimal"></div>
+          <div class="field"><label for="ob">Inferior</label><input id="ob" class="control" type="number" value="0.3" min="0" step="0.1" inputmode="decimal"></div>
+          <div class="field"><label for="ol">Esquerda</label><input id="ol" class="control" type="number" value="0.3" min="0" step="0.1" inputmode="decimal"></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="inner-title">
+        <div class="section-heading"><h2 id="inner-title">Margem interna de segurança</h2><button class="action-link" id="same-in" type="button">Igualar lados</button></div>
+        <p class="hint">Guia interna; não corta nem redimensiona a arte.</p>
+        <div class="side-grid">
+          <div class="field"><label for="it">Superior</label><input id="it" class="control" type="number" value="0.5" min="0" step="0.1" inputmode="decimal"></div>
+          <div class="field"><label for="ir">Direita</label><input id="ir" class="control" type="number" value="0.5" min="0" step="0.1" inputmode="decimal"></div>
+          <div class="field"><label for="ib">Inferior</label><input id="ib" class="control" type="number" value="0.5" min="0" step="0.1" inputmode="decimal"></div>
+          <div class="field"><label for="il">Esquerda</label><input id="il" class="control" type="number" value="0.5" min="0" step="0.1" inputmode="decimal"></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="export-title">
+        <div class="section-heading"><h2 id="export-title">Exportação</h2></div>
+        <div class="two">
+          <div class="field"><label for="format">Formato</label><select id="format" class="control"><option value="PDF" selected>PDF</option><option value="PNG">PNG</option></select></div>
+          <div class="field"><label for="marks">Marcas de corte</label><div class="toggle"><span class="hint">Adicionar marcas na cópia</span><input id="marks" type="checkbox" aria-label="Marcas de corte"></div></div>
+        </div>
+        <p class="hint">PDF rasterizado em RGB, com tamanho físico e caixas de corte/sangria. PNG usa os pixels calculados; verifique exigências CMYK com a gráfica.</p>
+      </section>
+
+      <div id="status" class="status" role="status" aria-live="polite">Pronto para criar uma cópia de impressão. Fotos e bordas complexas exigem revisão visual.</div>
+      <div id="log" class="hint"></div>
+    </main>
+    <footer>
+      <button id="apply" class="primary" type="button">Criar / atualizar sangria</button>
+      <div class="actions">
+        <button id="export" class="secondary" type="button">Exportar cópias</button>
+        <button id="remove" class="secondary" type="button">Remover cópias</button>
+      </div>
+    </footer>
+  </div>
+<script>
+  const $=id=>document.getElementById(id)
+  const post=message=>parent.postMessage({pluginMessage:message},'*')
+  const num=id=>Number($(id).value)
+  let running=false
+  let lastHeight=0
+  const unitOf=value=>{
+    const unit=String(value).toLowerCase()
+    return unit.includes('px')?'px':unit.includes('mm')?'mm':'cm'
+  }
+  const unitInches=(unit,basePpi)=>unit==='mm'?1/25.4:unit==='cm'?1/2.54:1/basePpi
+  const config=()=>({
+    unit:unitOf($('unit').value),
+    dpi:num('dpi'),
+    basePpi:num('basePpi'),
+    scope:$('scope').value==='page'?'page':'selection',
+    format:$('format').value==='PNG'?'PNG':'PDF',
+    marks:Boolean($('marks').checked),
+    outer:{top:num('ot'),right:num('or'),bottom:num('ob'),left:num('ol')},
+    inner:{top:num('it'),right:num('ir'),bottom:num('ib'),left:num('il')}
+  })
+  function setBusy(value){
+    running=value
+    for(const id of ['apply','export','remove'])$(id).disabled=value
+  }
+  function status(message,error){
+    $('status').textContent=message
+    $('status').className='status'+(error?' error':'')
+  }
+  function run(type){
+    if(running)return
+    const c=config()
+    const vals=[c.dpi,c.basePpi,...Object.values(c.outer),...Object.values(c.inner)]
+    if(vals.some(x=>!Number.isFinite(x)||x<0)||c.dpi<72||c.dpi>1200||c.basePpi<36||c.basePpi>1200){
+      status('Corrija as medidas. Use números não negativos e DPI de 72 a 1200.',true);return
+    }
+    $('log').textContent=''
+    setBusy(true)
+    post({type,config:c})
+  }
+  function updateUnitNote(unit){
+    $('unit-note').textContent=unit==='cm'?'cm · 0,3 cm = 3 mm':unit==='mm'?'mm · 10 mm = 1 cm':'px · usa a escala da arte'
+  }
+  let previousUnit='cm'
+  $('unit').addEventListener('change',()=>{
+    const next=unitOf($('unit').value)
+    if(next===previousUnit)return
+    const basePpi=Math.max(36,Math.min(1200,num('basePpi')||72))
+    const factor=unitInches(previousUnit,basePpi)/unitInches(next,basePpi)
+    for(const id of ['ot','or','ob','ol','it','ir','ib','il']){
+      const value=num(id)
+      if(Number.isFinite(value))$(id).value=String(Math.round(value*factor*100)/100)
+    }
+    updateUnitNote(next)
+    previousUnit=next
+  })
+  $('apply').addEventListener('click',()=>run('apply'))
+  $('export').addEventListener('click',()=>run('export'))
+  $('remove').addEventListener('click',()=>{
+    if(running)return
+    if(!window.confirm('Remover somente as cópias criadas pelo Bleed Pro? As pranchetas originais serão preservadas.'))return
+    setBusy(true)
+    post({type:'remove',scope:config().scope})
+  })
+  for(const [button,prefix] of [['same-out','o'],['same-in','i']]){
+    $(button).addEventListener('click',()=>{
+      const v=$(prefix+'t').value
+      for(const side of ['r','b','l'])$(prefix+side).value=v
+    })
+  }
+  const root=$('plugin-root')
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(()=>{
+    const h=Math.ceil(root.getBoundingClientRect().height)
+    if(h&&h!==lastHeight){lastHeight=h;post({type:'resize',height:h})}
+  }).observe(root)
+  function paddedBorder(message){
+    return new Promise((resolve,reject)=>{
+      const bytes=new Uint8Array(message.bytes)
+      const url=URL.createObjectURL(new Blob([bytes],{type:'image/png'}))
+      const img=new Image()
+      img.onload=()=>{
+        try{
+          const iw=img.naturalWidth,ih=img.naturalHeight
+          const px=iw/message.width
+          const l=Math.max(0,Math.round(message.outer.left*px))
+          const r=Math.max(0,Math.round(message.outer.right*px))
+          const t=Math.max(0,Math.round(message.outer.top*px))
+          const b=Math.max(0,Math.round(message.outer.bottom*px))
+          const w=iw+l+r,h=ih+t+b
+          if(w>8000||h>8000||w*h>36000000)throw new Error('A borda excedeu o limite de 36 megapixels.')
+          const canvas=document.createElement('canvas')
+          canvas.width=w;canvas.height=h
+          const ctx=canvas.getContext('2d',{willReadFrequently:false})
+          if(!ctx)throw new Error('Canvas indisponível.')
+          ctx.imageSmoothingEnabled=false
+          if(l)ctx.drawImage(img,0,0,1,ih,0,t,l,ih)
+          if(r)ctx.drawImage(img,iw-1,0,1,ih,l+iw,t,r,ih)
+          if(t)ctx.drawImage(img,0,0,iw,1,l,0,iw,t)
+          if(b)ctx.drawImage(img,0,ih-1,iw,1,l,t+ih,iw,b)
+          if(l&&t)ctx.drawImage(img,0,0,1,1,0,0,l,t)
+          if(r&&t)ctx.drawImage(img,iw-1,0,1,1,l+iw,0,r,t)
+          if(l&&b)ctx.drawImage(img,0,ih-1,1,1,0,t+ih,l,b)
+          if(r&&b)ctx.drawImage(img,iw-1,ih-1,1,1,l+iw,t+ih,r,b)
+          canvas.toBlob(async blob=>{
+            if(!blob){reject(new Error('Não foi possível criar a extensão.'));return}
+            try{resolve(Array.from(new Uint8Array(await blob.arrayBuffer())))}catch(e){reject(e)}
+          },'image/png')
+        }catch(e){reject(e)}finally{URL.revokeObjectURL(url)}
+      }
+      img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('A imagem de borda não pôde ser aberta.'))}
+      img.src=url
+    })
+  }
+  onmessage=async event=>{
+    const m=event.data.pluginMessage
+    if(!m||!m.type)return
+    if(m.type==='selection'){$('selection').textContent=m.message;return}
+    if(m.type==='edge-request'){
+      try{const bytes=await paddedBorder(m);post({type:'edge-result',job:m.job,bytes})}
+      catch(e){post({type:'edge-result',job:m.job,error:e.message||String(e)})}
+      return
+    }
+    if(m.type==='download'){
+      try{
+        const blob=new Blob([new Uint8Array(m.bytes)],{type:m.mime})
+        const link=document.createElement('a')
+        const url=URL.createObjectURL(blob)
+        link.href=url;link.download=m.filename
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        setTimeout(()=>URL.revokeObjectURL(url),10000)
+        post({type:'download-ack',job:m.job})
+      }catch(e){post({type:'download-ack',job:m.job,error:e.message||String(e)})}
+      return
+    }
+    if(m.type==='busy'){setBusy(true);status(m.message);return}
+    if(m.type==='progress'){status(m.message);return}
+    if(m.type==='item'){
+      const child=document.createElement('div');child.textContent=m.message;$('log').appendChild(child);return
+    }
+    if(m.type==='done'){status(m.message);setBusy(false);return}
+    if(m.type==='error'){status(m.message,true);setBusy(false);return}
+    if(m.type==='idle'){setBusy(false)}
+  }
+</script>
+</body>
+</html>

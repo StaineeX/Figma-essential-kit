@@ -1,0 +1,10 @@
+{
+  "name": "FIGAI — Export to Illustrator",
+  "id": "123456789012345678",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": { "allowedDomains": ["none"] }
+}

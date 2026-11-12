@@ -1,0 +1,276 @@
+{
+  "format": "FIGAI",
+  "version": "0.1.0",
+  "generator": {
+    "name": "FIGAI Figma Plugin",
+    "version": "0.1.0"
+  },
+  "document": {
+    "name": "FIGAI End-to-End Fixture",
+    "colorMode": "CMYK",
+    "bleedMm": 3,
+    "unit": "pt"
+  },
+  "artboards": [
+    {
+      "id": "f1",
+      "name": "Front",
+      "widthPx": 800,
+      "heightPx": 600,
+      "children": [
+        {
+          "id": "r1",
+          "type": "RECTANGLE",
+          "name": "Hero Card",
+          "visible": true,
+          "opacity": 1,
+          "blendMode": "NORMAL",
+          "x": 40,
+          "y": 40,
+          "width": 720,
+          "height": 220,
+          "rotation": 0,
+          "matrix": [
+            [
+              1,
+              0,
+              40
+            ],
+            [
+              0,
+              1,
+              40
+            ]
+          ],
+          "fills": [
+            {
+              "type": "SOLID",
+              "visible": true,
+              "opacity": 1,
+              "color": {
+                "r": 0.08,
+                "g": 0.09,
+                "b": 0.11,
+                "a": 1
+              }
+            }
+          ],
+          "strokes": [],
+          "effects": [],
+          "cornerRadius": 24
+        },
+        {
+          "id": "t1",
+          "type": "TEXT",
+          "name": "Headline",
+          "visible": true,
+          "opacity": 1,
+          "blendMode": "NORMAL",
+          "x": 80,
+          "y": 95,
+          "width": 600,
+          "height": 70,
+          "rotation": 0,
+          "matrix": [
+            [
+              1,
+              0,
+              80
+            ],
+            [
+              0,
+              1,
+              95
+            ]
+          ],
+          "characters": "FIGAI Editable",
+          "textAlignHorizontal": "LEFT",
+          "textAlignVertical": "TOP",
+          "textAutoResize": "HEIGHT",
+          "runs": [
+            {
+              "start": 0,
+              "end": 5,
+              "fontFamily": "Inter",
+              "fontStyle": "Bold",
+              "fontWeight": 700,
+              "fontSize": 48,
+              "fill": {
+                "type": "SOLID",
+                "visible": true,
+                "opacity": 1,
+                "color": {
+                  "r": 1,
+                  "g": 1,
+                  "b": 1,
+                  "a": 1
+                }
+              },
+              "lineHeight": 56,
+              "letterSpacing": 0
+            },
+            {
+              "start": 5,
+              "end": 14,
+              "fontFamily": "Inter",
+              "fontStyle": "Regular",
+              "fontWeight": 400,
+              "fontSize": 48,
+              "fill": {
+                "type": "SOLID",
+                "visible": true,
+                "opacity": 1,
+                "color": {
+                  "r": 0.2,
+                  "g": 0.65,
+                  "b": 1,
+                  "a": 1
+                }
+              },
+              "lineHeight": 56,
+              "letterSpacing": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "f2",
+      "name": "Back",
+      "widthPx": 800,
+      "heightPx": 600,
+      "children": [
+        {
+          "id": "e1",
+          "type": "ELLIPSE",
+          "name": "Accent",
+          "visible": true,
+          "opacity": 0.8,
+          "blendMode": "NORMAL",
+          "x": 70,
+          "y": 70,
+          "width": 180,
+          "height": 180,
+          "rotation": 0,
+          "matrix": [
+            [
+              1,
+              0,
+              70
+            ],
+            [
+              0,
+              1,
+              70
+            ]
+          ],
+          "fills": [
+            {
+              "type": "SOLID",
+              "visible": true,
+              "opacity": 1,
+              "color": {
+                "r": 0.95,
+                "g": 0.2,
+                "b": 0.15,
+                "a": 1
+              }
+            }
+          ],
+          "strokes": [],
+          "effects": []
+        },
+        {
+          "id": "i1",
+          "type": "IMAGE",
+          "name": "Photo",
+          "visible": true,
+          "opacity": 1,
+          "x": 300,
+          "y": 80,
+          "width": 420,
+          "height": 360,
+          "rotation": 0,
+          "matrix": [
+            [
+              1,
+              0,
+              300
+            ],
+            [
+              0,
+              1,
+              80
+            ]
+          ],
+          "assetId": "img-0001",
+          "scaleMode": "CROP",
+          "imageTransform": [
+            [
+              1.2,
+              0,
+              -0.1
+            ],
+            [
+              0,
+              1.2,
+              -0.1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "f3",
+      "name": "Vector",
+      "widthPx": 400,
+      "heightPx": 400,
+      "children": [
+        {
+          "id": "v1",
+          "type": "FALLBACK_SVG",
+          "name": "Editable Mark",
+          "visible": true,
+          "opacity": 1,
+          "x": 80,
+          "y": 80,
+          "width": 240,
+          "height": 240,
+          "rotation": 0,
+          "matrix": [
+            [
+              1,
+              0,
+              80
+            ],
+            [
+              0,
+              1,
+              80
+            ]
+          ],
+          "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"240\" height=\"240\" viewBox=\"0 0 240 240\"><path d=\"M0 0L240 0L120 240Z\" fill=\"#000\"/></svg>",
+          "reason": "Vector geometry exported through SVG for Illustrator editability"
+        }
+      ]
+    }
+  ],
+  "assets": {
+    "images": [
+      {
+        "id": "img-0001",
+        "mimeType": "image/png",
+        "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Wl8sAAAAASUVORK5CYII=",
+        "sourceHash": "fixture-image"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "SVG_FALLBACK",
+      "message": "Vector geometry exported through SVG for Illustrator editability",
+      "nodeId": "v1",
+      "nodeName": "Editable Mark"
+    }
+  ]
+}

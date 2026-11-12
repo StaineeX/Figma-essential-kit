@@ -1,0 +1,17 @@
+{
+  "name": "Bleed Pro",
+  "id": "f394038b-4a32-4ad7-b82c-4530431c9c28",
+  "api": "1.0.0",
+  "main": "code.js",
+  "documentAccess": "dynamic-page",
+  "editorType": [
+    "figma"
+  ],
+  "relaunchButtons": [
+    {
+      "command": "f394038b-4a32-4ad7-b82c-4530431c9c28",
+      "name": "Bleed Pro"
+    }
+  ],
+  "ui": "ui.html"
+}

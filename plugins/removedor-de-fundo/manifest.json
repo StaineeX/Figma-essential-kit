@@ -1,0 +1,12 @@
+{
+  "name": "Remove BG Pro",
+  "id": "remove-bg-pro",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/plugin.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["https://staticimgly.com"]
+  }
+}
+

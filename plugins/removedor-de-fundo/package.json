@@ -1,0 +1,20 @@
+{
+  "name": "remove-bg-pro",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/inline-plugin.mjs",
+    "start": "node server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@imgly/background-removal": "1.7.0",
+    "onnxruntime-web": "1.21.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.8"
+  }
+}
+

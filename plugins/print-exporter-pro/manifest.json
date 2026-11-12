@@ -1,0 +1,12 @@
+{
+  "name": "Print Exporter Pro",
+  "id": "print-exporter-pro",
+  "api": "1.0.0",
+  "main": "src/code.js",
+  "ui": "src/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  }
+}

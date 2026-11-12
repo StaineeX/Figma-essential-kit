@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f4f1" />
+    <meta name="remove-bg-runtime" content="standalone" />
+    <link rel="icon" href="/favicon.svg" />
+    <title>Remove BG Pro</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M5.5 4.5h8a6 6 0 0 1 0 12h-8a6 6 0 1 1 0-12Z" />
+              <path d="m8 8 8 8M14.5 7.5l2 2M7.5 14.5l2 2" />
+            </svg>
+          </span>
+          <span>
+            <span class="brand-name">Remove BG</span>
+            <span class="brand-caption">PRO · LOCAL WORKSPACE</span>
+          </span>
+        </div>
+        <div class="topbar-actions">
+          <span class="engine-pill"><span class="status-dot"></span> IA local</span>
+          <button class="icon-button" id="close-button" type="button" aria-label="Fechar plugin" title="Fechar plugin">×</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="main-column" aria-label="Editor de imagem">
+          <div class="eyebrow">EDITOR DE RECORTE</div>
+          <h1>Recorte limpo, sem sair do seu fluxo.</h1>
+          <p class="lede">Remova o fundo no próprio navegador e refine o resultado antes de exportar.</p>
+
+          <section class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Escolher ou soltar imagem">
+            <div class="dropzone-icon" aria-hidden="true">↥</div>
+            <div>
+              <strong>Solte uma imagem aqui</strong>
+              <span>JPG, PNG ou WEBP · até 20 MB</span>
+            </div>
+            <div class="dropzone-actions">
+              <button class="secondary-button selection-button" id="selection-button" type="button" hidden>Usar seleção</button>
+              <button class="primary-button" id="choose-button" type="button">Escolher imagem</button>
+            </div>
+            <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" hidden />
+          </section>
+
+          <section class="preview-card" id="preview-card" aria-label="Prévia antes e depois">
+            <div class="preview-empty" id="preview-empty">
+              <div class="empty-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+              <strong>Sua prévia aparece aqui</strong>
+              <span>O arquivo continua no seu dispositivo.</span>
+            </div>
+            <div class="preview-content" id="preview-content" hidden>
+              <div class="preview-toolbar">
+                <span class="preview-file" id="file-name">Nenhuma imagem</span>
+                <span class="preview-meta" id="file-meta">—</span>
+              </div>
+              <div class="comparison-view" id="comparison-view" style="--split: 50%; --ratio: 1.5">
+                <div class="comparison-image comparison-original">
+                  <img id="original-image" alt="Imagem original" />
+                  <span class="image-label">ORIGINAL</span>
+                </div>
+                <div class="comparison-image comparison-result" id="comparison-result">
+                  <div class="result-backdrop" id="result-backdrop"></div>
+                  <img id="result-image" alt="Imagem com fundo removido" />
+                  <span class="image-label">RECORTE</span>
+                </div>
+                <div class="split-line" aria-hidden="true"><span>↔</span></div>
+                <input class="split-control" id="split-range" type="range" min="0" max="100" value="50" aria-label="Posição da comparação antes e depois" />
+              </div>
+              <div class="preview-footer">
+                <span class="preview-status" id="preview-status" role="status">Pronto para processar</span>
+                <span class="privacy-note"><span aria-hidden="true">⌁</span> processado no dispositivo</span>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="controls-panel" aria-label="Configurações do recorte">
+          <div class="panel-heading">
+            <div>
+              <div class="eyebrow">CONFIGURAÇÃO</div>
+              <h2>Ajustes do recorte</h2>
+            </div>
+            <span class="panel-index">01</span>
+          </div>
+
+          <div class="control-group">
+            <label for="image-type">Tipo de imagem</label>
+            <select id="image-type">
+              <option value="general">Geral</option>
+              <option value="portrait">Retrato / pessoa</option>
+              <option value="product">Produto</option>
+              <option value="vehicle">Carro / veículo</option>
+            </select>
+            <span class="field-help">Ajuste de contexto para seu fluxo de trabalho.</span>
+          </div>
+
+          <div class="control-group">
+            <div class="label-row">
+              <label for="edge-range">Refinar bordas</label>
+              <output id="edge-value" for="edge-range">0%</output>
+            </div>
+            <input id="edge-range" type="range" min="0" max="100" value="0" step="1" />
+            <div class="range-labels"><span>Original</span><span>Mais suave</span></div>
+          </div>
+
+          <div class="control-group">
+            <span class="control-label">Fundo da prévia</span>
+            <div class="background-options" role="radiogroup" aria-label="Fundo da prévia">
+              <label class="background-option">
+                <input type="radio" name="background" value="transparent" checked />
+                <span class="background-swatch checker"></span>
+                <span>Transparente</span>
+              </label>
+              <label class="background-option">
+                <input type="radio" name="background" value="white" />
+                <span class="background-swatch white"></span>
+                <span>Branco</span>
+              </label>
+              <label class="background-option">
+                <input type="radio" name="background" value="custom" />
+                <span class="background-swatch custom" id="custom-swatch"></span>
+                <span>Personalizado</span>
+              </label>
+            </div>
+            <label class="color-picker-row" id="color-picker-row" hidden>
+              <span>Cor personalizada</span>
+              <input id="custom-color" type="color" value="#e9e5dc" />
+            </label>
+          </div>
+
+          <div class="engine-note">
+            <span class="engine-note-icon" aria-hidden="true">✦</span>
+            <div><strong>Motor local real</strong><span>Sem upload ou créditos; o modelo é baixado no primeiro uso.</span></div>
+          </div>
+
+          <div class="panel-actions">
+            <button class="secondary-button" id="reset-button" type="button">Resetar</button>
+            <button class="secondary-button" id="insert-button" type="button" disabled>Inserir no Figma</button>
+            <button class="primary-button export-button" id="export-button" type="button" disabled>Exportar PNG <span aria-hidden="true">↗</span></button>
+          </div>
+          <p class="status-message" id="status-message" role="status" aria-live="polite">Escolha uma imagem para começar.</p>
+        </aside>
+      </main>
+
+      <footer class="footer-note"><span>Remove BG Pro</span><span>v1.0 · fluxo local</span></footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
+
