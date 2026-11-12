@@ -181,7 +181,7 @@
       .empty-state { padding: 18px 10px; color: var(--muted); text-align: center; }
       .empty-state strong { display: block; margin-bottom: 4px; color: var(--muted-strong); }
 
-      .preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+      .preset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
       .preset {
         padding: 9px 8px;
         border: 1px solid var(--line);
@@ -294,6 +294,7 @@
           <button class="preset" type="button" data-preset="screen"><strong>Tela</strong><span>RGB · sem sangria</span></button>
           <button class="preset" type="button" data-preset="press" data-active="true"><strong>Impressão</strong><span>CMYK · 3 mm</span></button>
           <button class="preset" type="button" data-preset="printer"><strong>Gráfica</strong><span>CMYK · 5 mm</span></button>
+          <button class="preset" type="button" data-preset="sticker"><strong>Adesivo</strong><span>medida final · sem marcas</span></button>
         </div>
       </section>
 
@@ -386,6 +387,8 @@
         screen: { preset: 'screen', colorMode: 'RGB', pageSize: 'frame', bleed: 0, cropMarks: false },
         press: { preset: 'press', colorMode: 'CMYK', pageSize: 'frame', bleed: 3, cropMarks: true },
         printer: { preset: 'printer', colorMode: 'CMYK', pageSize: 'frame', bleed: 5, cropMarks: true },
+        // Adesivo: página = medida final, arte até a borda, sem marcas (a plotter corta pela borda).
+        sticker: { preset: 'sticker', colorMode: 'CMYK', pageSize: 'frame', bleed: 0, cropMarks: false },
       };
       const DEFAULTS = { scope: 'selection', colorMode: 'CMYK', preset: 'printer', pageSize: 'frame', bleed: 5, cropMarks: true };
       const state = { scope: 'selection', frames: [], settings: { ...DEFAULTS }, busy: false };

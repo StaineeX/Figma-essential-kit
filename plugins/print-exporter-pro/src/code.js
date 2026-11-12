@@ -302,18 +302,25 @@ async function exportBleedProCopy(node, settings) {
 // Monta folha temporária: cópia do Bleed Pro (já sem guias/marcas) + marcas do
 // Exporter saindo do canto do corte até a borda da folha.
 async function exportWithOwnMarks(node, sheet, pxToPt, widthPt, heightPt, settings) {
+  // Adesivo (sem sangria e sem marcas): página = só a área útil, recortada da cópia.
+  const sticker = settings.bleed === 0 && !settings.cropMarks;
+  const offX = sticker ? sheet.trim.x * pxToPt : 0;
+  const offY = sticker ? sheet.trim.y * pxToPt : 0;
+  const pageW = sticker ? sheet.trim.width * pxToPt : widthPt;
+  const pageH = sticker ? sheet.trim.height * pxToPt : heightPt;
   const temp = figma.createFrame();
   let copy;
   try {
     temp.name = '__print_exporter_pro_temp__';
-    temp.resize(widthPt, heightPt);
+    temp.resize(pageW, pageH);
     temp.fills = [];
     temp.clipsContent = true;
     copy = node.clone();
     temp.appendChild(copy);
     copy.rescale(pxToPt);
-    copy.x = 0;
-    copy.y = 0;
+    copy.x = -offX;
+    copy.y = -offY;
+    if (sticker) return await exportSheet(temp, { pageWidthPt: pageW, pageHeightPt: pageH }, settings);
     if (settings.cropMarks) {
       const x0 = sheet.trim.x * pxToPt;
       const y0 = sheet.trim.y * pxToPt;
@@ -341,9 +348,6 @@ async function exportWithOwnMarks(node, sheet, pxToPt, widthPt, heightPt, settin
 
 async function makePrintPdf(node, settings) {
   if (isBleedProCopy(node)) return exportBleedProCopy(node, settings);
-  if (settings.bleed === 0 && !settings.cropMarks && settings.quality !== 'raster') {
-    return node.exportAsync({ format: 'PDF' });
-  }
 
   if (node.type === 'SECTION') {
     throw new Error('Para incluir marcas de corte, selecione um frame ou componente em vez de uma seção.');

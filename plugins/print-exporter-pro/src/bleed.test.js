@@ -248,3 +248,33 @@ test('espelho leva só camadas que encostam na borda: logo/texto perto da borda 
   assert.deepEqual(names([1, -1, (p) => p.y === minY]), ['fundo'], 'topo: só o fundo');
   assert.deepEqual(names([1, -1, (p) => p.y === maxY]), ['fundo', 'onda'], 'base: fundo e onda');
 });
+
+test('Adesivo: página = medida final exata, sem marcas e sem sangria (qualquer tamanho)', async () => {
+  const pxPerMm = 96 / 25.4;
+  for (const [w, h] of [[200, 70], [90, 50], [150, 150]]) {
+    for (const quality of ['raster', 'vector']) {
+      const { layers, sheet } = mockFigma();
+      let result;
+      try {
+        result = await makePrintPdf(frame(w * pxPerMm, h * pxPerMm), normalizeSettings({ bleed: 0, cropMarks: false, quality }));
+      } finally { delete global.figma; }
+      close(sheet().width / MM, w, `${w}×${h} ${quality}: largura`);
+      close(sheet().height / MM, h, `${w}×${h} ${quality}: altura`);
+      assert.equal(layers.filter((l) => /Marca de corte/.test(l.name || '')).length, 0, 'sem marcas');
+      assert.equal(layers.filter((l) => l.name === 'Sangria espelhada').length, 0, 'sem sangria');
+      if (quality === 'raster') close(result.widthPt / MM, w, 'PDF na medida final');
+    }
+  }
+});
+
+test('Adesivo a partir de cópia com sangria (Bleed Pro/FIGAI): recorta só a área útil', async () => {
+  const { sheet } = mockFigma();
+  const data = { version: 1, ppi: 96, guides: 'G', trim: { x: 18.9, y: 18.9, width: 755.9, height: 264.6 } };
+  const copy = { type: 'FRAME', width: 793.7, height: 302.4, children: [], getSharedPluginData: () => JSON.stringify(data), clone: () => ({ rescale() {}, remove() {} }) };
+  let result;
+  try {
+    result = await makePrintPdf(copy, normalizeSettings({ bleed: 0, cropMarks: false }));
+  } finally { delete global.figma; }
+  close(result.widthPt / MM, 755.9 * 0.75 / MM, 'só a área útil (200 mm)');
+  close(sheet().width, 755.9 * 0.75, 'folha = área útil');
+});
