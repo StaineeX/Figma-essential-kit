@@ -9,6 +9,11 @@ let busy = false;
 function emit(type, message, extra) {
     figma.ui.postMessage(Object.assign({ type, message }, extra || {}));
 }
+function hexToRgb(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+    const v = m ? parseInt(m[1], 16) : 0xffffff;
+    return { r: (v >> 16 & 255) / 255, g: (v >> 8 & 255) / 255, b: (v & 255) / 255 };
+}
 function finite(v) { return typeof v === 'number' && Number.isFinite(v); }
 function unitToInches(unit, basePpi) {
     if (unit === 'mm')
@@ -239,15 +244,16 @@ async function prepare(source, config) {
         // recorta mais no corte; quem recorta é uma moldura no limite da sangria.
         const clip = figma.createFrame();
         print.appendChild(clip);
-        // Fundo vai até a borda da folha (sangria + área das marcas), igual ao
-        // PDF de referência; as marcas de corte ficam por cima.
+        // Arte e espelho vão só até a linha da sangria; fora dela (área das marcas)
+        // fica a cor escolhida, branca por padrão.
+        print.fills = [{ type: 'SOLID', color: hexToRgb(config.slugColor) }];
         clip.name = 'SANGRIA • RECORTE';
-        clip.resize(sheetW, sheetH);
-        clip.x = 0;
-        clip.y = 0;
+        clip.resize(source.width + b.left + b.right, source.height + b.top + b.bottom);
+        clip.x = slug;
+        clip.y = slug;
         clip.fills = [];
         clip.clipsContent = true;
-        const full = { top: b.top + slug, right: b.right + slug, bottom: b.bottom + slug, left: b.left + slug };
+        const full = b;
         const art = source.clone();
         clip.appendChild(art);
         art.name = 'ARTE ORIGINAL • CÓPIA EDITÁVEL';

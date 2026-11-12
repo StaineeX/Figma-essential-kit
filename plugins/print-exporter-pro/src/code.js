@@ -87,6 +87,12 @@ function cropMarkSegments(geometry) {
 }
 
 // Todos os preenchimentos visíveis do frame (cor, gradiente ou imagem).
+function hexToRgb(hex) {
+  const match = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''));
+  const value = match ? parseInt(match[1], 16) : 0xffffff;
+  return { r: (value >> 16 & 255) / 255, g: (value >> 8 & 255) / 255, b: (value & 255) / 255 };
+}
+
 function frameBackgroundFills(node) {
   if (!node || !Array.isArray(node.fills)) return null;
   const visible = node.fills.filter((paint) => paint.visible !== false && paint.opacity !== 0);
@@ -313,7 +319,7 @@ async function exportWithOwnMarks(node, sheet, pxToPt, widthPt, heightPt, settin
   try {
     temp.name = '__print_exporter_pro_temp__';
     temp.resize(pageW, pageH);
-    temp.fills = [];
+    temp.fills = [{ type: 'SOLID', color: hexToRgb(settings.slugColor) }];
     temp.clipsContent = true;
     copy = node.clone();
     temp.appendChild(copy);
@@ -376,19 +382,20 @@ async function makePrintPdf(node, settings) {
     printFrame.strokes = [];
     printFrame.clipsContent = false;
 
-    // Moldura do tamanho da folha: fundo e elementos que passam da borda da
-    // prancheta vão até a borda da folha (sangria + área das marcas), igual ao
-    // PDF de referência. As marcas de corte ficam por cima.
-    const marginPt = geometry.marginPt * scale;
+    // Área fora da sangria (onde ficam as marcas): cor sólida, branca por padrão.
+    printFrame.fills = [{ type: 'SOLID', color: hexToRgb(settings.slugColor) }];
+    // Moldura no limite da sangria: arte, fundo e espelho param na linha da sangria.
+    const bleedOnly = geometry.bleedPt * scale;
     clip = figma.createFrame();
     printFrame.appendChild(clip);
     clip.name = 'Sangria';
-    clip.resize(geometry.pageWidthPt * scale, geometry.pageHeightPt * scale);
-    clip.x = 0;
-    clip.y = 0;
+    clip.resize(geometry.widthPt * scale + 2 * bleedOnly, geometry.heightPt * scale + 2 * bleedOnly);
+    clip.x = (geometry.marginPt - geometry.bleedPt) * scale;
+    clip.y = (geometry.marginPt - geometry.bleedPt) * scale;
     clip.fills = [];
     clip.clipsContent = true;
-    const inClip = { ...geometry, bleedPt: geometry.marginPt };
+    const inClip = { ...geometry, marginPt: geometry.bleedPt };
+    const marginPt = bleedOnly;
 
     // O fundo é a primeira camada, por trás do conteúdo clonado.
     if (settings.bleed > 0) {
@@ -451,6 +458,7 @@ function normalizeSettings(input = {}) {
     pageSize: typeof source.pageSize === 'string' ? source.pageSize : DEFAULT_SETTINGS.pageSize,
     bleed,
     quality: source.quality === 'vector' ? 'vector' : 'raster',
+    slugColor: /^#[0-9a-f]{6}$/i.test(String(source.slugColor)) ? source.slugColor : '#ffffff',
     dpi: [150, 300, 600].includes(Number(source.dpi)) ? Number(source.dpi) : 300,
     customWidth: Number(source.customWidth),
     customHeight: Number(source.customHeight),

@@ -63,10 +63,11 @@ for (const [label, settings, w, h, expectW, expectH] of [
 
     const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
     assert.ok(bg, 'fundo estendido existe');
-    close(bg.x, 0, 'fundo começa na borda da folha (x)');
-    close(bg.y, 0, 'fundo começa na borda da folha (y)');
-    close(bg.width, sheet().width, 'fundo cobre a folha inteira (largura)');
-    close(bg.height, sheet().height, 'fundo cobre a folha inteira (altura)');
+    close(bg.x, extra, 'fundo começa na linha da sangria (x)');
+    close(bg.y, extra, 'fundo começa na linha da sangria (y)');
+    close(bg.width, expectW + 2 * bleed, 'fundo cobre largura + 2 sangrias');
+    assert.deepEqual(sheet().fills[0].color, { r: 1, g: 1, b: 1 }, 'fora da sangria: branco por padrão');
+    close(bg.height, expectH + 2 * bleed, 'fundo cobre altura + 2 sangrias');
     assert.deepEqual(bg.fills[0].color, { r: 0, g: 0.5, b: 1 }, 'fundo usa a cor da prancheta');
 
     const art = layers.find((l) => !l.name);
@@ -91,7 +92,7 @@ for (const [label, settings, w, h, expectW, expectH] of [
   });
 }
 
-test('fundo em imagem do frame também vai até a borda da folha', async () => {
+test('fundo em imagem do frame também vai até a linha da sangria', async () => {
   const { layers, flatten } = mockFigma();
   const image = { type: 'IMAGE', imageHash: 'abc', scaleMode: 'FILL' };
   try {
@@ -101,7 +102,7 @@ test('fundo em imagem do frame também vai até a borda da folha', async () => {
   const bg = layers.find((l) => l.name === 'Fundo estendido para sangria');
   assert.ok(bg, 'fundo estendido existe');
   assert.deepEqual(bg.fills, [image]);
-  close(bg.width, 210 * MM + 2 * (5 + 4.525) * MM, 'A4 + sangria + área das marcas');
+  close(bg.width, 210 * MM + 10 * MM, 'A4 + 5 mm de cada lado');
 });
 
 test('sangria espelhada: 8 molduras cobrem tudo fora do corte, sem ampliar a arte', async () => {
@@ -117,7 +118,7 @@ test('sangria espelhada: 8 molduras cobrem tudo fora do corte, sem ampliar a art
   const W = sheet().width, H = sheet().height;
   const m = (5 + 4.525) * MM, w = 900, h = 300; // 1200 × 400 px a 96 px/pol
   const area = clips.reduce((sum, c) => sum + c.width * c.height, 0);
-  close(area, W * H - w * h, 'molduras cobrem exatamente a folha fora do corte');
+  close(area, (w + 2 * 5 * MM) * (h + 2 * 5 * MM) - w * h, 'molduras cobrem exatamente a sangria fora do corte');
   for (const c of clips) assert.equal(c.clipsContent, true);
   for (const mir of mirrors) {
     const [[sx], [, sy]] = mir.relativeTransform;
@@ -125,11 +126,12 @@ test('sangria espelhada: 8 molduras cobrem tudo fora do corte, sem ampliar a art
     assert.ok(sx === -1 || sy === -1, 'refletido em pelo menos um eixo');
   }
   // Lado esquerdo: espelho refletido exatamente na linha de corte (x = m).
-  const left = mirrors.find((mir) => mir.relativeTransform[0][0] === -1 && mir.relativeTransform[1][1] === 1 && mir.parent.x === leftClipX);
+  const minClipX = Math.min(...clips.map((c) => c.x));
+  const left = mirrors.find((mir) => mir.relativeTransform[0][0] === -1 && mir.relativeTransform[1][1] === 1 && mir.parent.x === minClipX);
   close(left.parent.x + left.relativeTransform[0][2], m, 'eixo do espelho = corte esquerdo');
 });
 
-test('elementos que passam da borda vão até a borda da folha', async () => {
+test('elementos que passam da borda vão até a linha da sangria', async () => {
   const { layers, sheet, flatten } = mockFigma();
   try {
     await makePrintPdf(frame(610, 845), normalizeSettings({ pageSize: 'frame', bleed: 5, cropMarks: true }));
@@ -139,8 +141,8 @@ test('elementos que passam da borda vão até a borda da folha', async () => {
   const extra = 4.525 * MM;
   const clip = layers.find((l) => l.name === 'Sangria');
   assert.equal(clip.clipsContent, true, 'moldura recorta');
-  close(clip.x, 0, 'moldura começa na borda da folha');
-  close(clip.width, sheet().width, 'moldura = folha inteira');
+  close(clip.x, extra, 'moldura começa na linha da sangria');
+  close(clip.width, 610 * 0.75 + 10 * MM, 'moldura = tamanho final + 2 sangrias');
   const art = layers.find((l) => !l.name);
   assert.equal(art.parent, clip, 'arte dentro da moldura');
   assert.equal(art.clipsContent, false, 'arte não recorta mais no corte');
@@ -277,4 +279,14 @@ test('Adesivo a partir de cópia com sangria (Bleed Pro/FIGAI): recorta só a á
   } finally { delete global.figma; }
   close(result.widthPt / MM, 755.9 * 0.75 / MM, 'só a área útil (200 mm)');
   close(sheet().width, 755.9 * 0.75, 'folha = área útil');
+});
+
+test('cor fora da sangria: branco por padrão, pode trocar', async () => {
+  for (const [input, expected] of [[undefined, { r: 1, g: 1, b: 1 }], ['#ff0000', { r: 1, g: 0, b: 0 }], ['lixo', { r: 1, g: 1, b: 1 }]]) {
+    const { sheet } = mockFigma();
+    try {
+      await makePrintPdf(frame(400, 400), normalizeSettings({ bleed: 5, cropMarks: true, slugColor: input }));
+    } finally { delete global.figma; }
+    assert.deepEqual(sheet().fills[0].color, expected);
+  }
 });

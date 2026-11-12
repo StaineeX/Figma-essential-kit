@@ -360,6 +360,7 @@
                 <label class="switch" aria-label="Marcas de corte"><input id="cropMarks" type="checkbox" checked /><span class="switch-track"></span></label>
               </div>
             </div>
+            <div class="toggle-row" style="margin-top: 10px"><div class="toggle-copy"><strong>Cor fora da sangria</strong><span>área das marcas · padrão branco</span></div><input id="slugColor" type="color" value="#ffffff" aria-label="Cor fora da sangria" /></div>
             <p class="hint">O documento original permanece intacto; as opções entram no resumo de saída.</p>
           </div>
         </div>
@@ -427,6 +428,7 @@
           customHeight: $('#customHeight').value,
           bleed: $('#bleed').value,
           cropMarks: $('#cropMarks').checked,
+          slugColor: $('#slugColor').value || '#ffffff',
         };
       }
 
@@ -441,6 +443,7 @@
         $('#customSize').hidden = state.settings.pageSize !== 'custom';
         $('#bleed').value = state.settings.bleed ?? 0;
         $('#cropMarks').checked = Boolean(state.settings.cropMarks);
+        $('#slugColor').value = state.settings.slugColor || '#ffffff';
         $$('.preset').forEach((button) => { button.dataset.active = String(button.dataset.preset === state.settings.preset); });
       }
 
@@ -552,7 +555,7 @@
         renderSummary();
       }));
       $$('.preset').forEach((button) => button.addEventListener('click', () => applyPreset(button.dataset.preset)));
-      ['#pageSize', '#quality', '#customWidth', '#customHeight', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
+      ['#pageSize', '#quality', '#slugColor', '#customWidth', '#customHeight', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
         state.settings = { ...readSettings(), preset: 'custom' };
         saveSettings();
         clearMessage();

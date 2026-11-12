@@ -5,7 +5,7 @@ const MARKS = 'bleedpro.marks'
 const GUIDE_NAME = 'SANGRIA • NÃO EDITAR'
 type Unit = 'mm'|'cm'|'px'
 type Sides = { top:number; right:number; bottom:number; left:number }
-type Config = { unit:Unit; dpi:number; basePpi:number; outer:Sides; inner:Sides; scope:'selection'|'page'; marks:boolean; format:'PDF'|'PNG' }
+type Config = { unit:Unit; dpi:number; basePpi:number; outer:Sides; inner:Sides; scope:'selection'|'page'; marks:boolean; format:'PDF'|'PNG'; slugColor?:string }
 type UiMessage =
   | {type:'resize';height:number}
   | {type:'apply';config:Config}
@@ -18,6 +18,11 @@ let sequence = 0
 let busy = false
 function emit(type:string, message:string, extra?:Record<string,unknown>):void {
   figma.ui.postMessage(Object.assign({type,message},extra||{}))
+}
+function hexToRgb(hex?:string):RGB {
+  const m=/^#?([0-9a-f]{6})$/i.exec(String(hex||''))
+  const v=m?parseInt(m[1],16):0xffffff
+  return {r:(v>>16&255)/255,g:(v>>8&255)/255,b:(v&255)/255}
 }
 function finite(v:number):boolean {return typeof v==='number' && Number.isFinite(v)}
 function unitToInches(unit:Unit,basePpi:number):number {
@@ -205,12 +210,13 @@ async function prepare(source:FrameNode,config:Config):Promise<{node:FrameNode;w
     // recorta mais no corte; quem recorta é uma moldura no limite da sangria.
     const clip=figma.createFrame()
     print.appendChild(clip)
-    // Fundo vai até a borda da folha (sangria + área das marcas), igual ao
-    // PDF de referência; as marcas de corte ficam por cima.
+    // Arte e espelho vão só até a linha da sangria; fora dela (área das marcas)
+    // fica a cor escolhida, branca por padrão.
+    print.fills=[{type:'SOLID',color:hexToRgb(config.slugColor)}]
     clip.name='SANGRIA • RECORTE'
-    clip.resize(sheetW,sheetH)
-    clip.x=0;clip.y=0;clip.fills=[];clip.clipsContent=true
-    const full:Sides={top:b.top+slug,right:b.right+slug,bottom:b.bottom+slug,left:b.left+slug}
+    clip.resize(source.width+b.left+b.right,source.height+b.top+b.bottom)
+    clip.x=slug;clip.y=slug;clip.fills=[];clip.clipsContent=true
+    const full:Sides=b
     const art=source.clone()
     clip.appendChild(art)
     art.name='ARTE ORIGINAL • CÓPIA EDITÁVEL'
