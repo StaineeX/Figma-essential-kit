@@ -31,8 +31,10 @@ test('contains presets and the controller message contract', () => {
   }
 });
 
-test('labels the reference output by its 5 mm bleed', () => {
-  assert.match(html, /<option value="reference">5 mm · igual ao modelo<\/option>/);
+test('offers the most used print sizes', () => {
+  for (const size of ['frame', 'A3', 'A4', 'A5', 'A6', 'Letter', 'card', 'flyer', 'folder', 'square', 'story', 'reference', 'custom']) {
+    assert.match(html, new RegExp(`<option value="${size}"`));
+  }
 });
 
 test('starts with the primary action disabled until frames are available', () => {

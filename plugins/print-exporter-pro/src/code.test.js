@@ -138,6 +138,18 @@ test('uses a custom page size in mm and rejects missing or mismatched sizes', ()
   );
 });
 
+test('standard sizes follow the frame orientation and reject other proportions', async () => {
+  const mm = 72 / 25.4;
+  const portrait = printGeometry(210, 297, normalizeSettings({ pageSize: 'A4', bleed: 0, cropMarks: false }));
+  assert.ok(Math.abs(portrait.widthPt - 210 * mm) < 0.001);
+  const landscape = printGeometry(90, 50, normalizeSettings({ pageSize: 'card', bleed: 0, cropMarks: false }));
+  assert.ok(Math.abs(landscape.widthPt - 90 * mm) < 0.001);
+  await assert.rejects(
+    makePrintPdf({ type: 'FRAME', width: 610, height: 845 }, normalizeSettings({ pageSize: 'A4', bleed: 5 })),
+    /mesma proporção de 210 × 297 mm/,
+  );
+});
+
 test('crop marks run from the trim corner to the page edge, over the artwork', () => {
   const geometry = printGeometry(100, 50, normalizeSettings({ bleed: 5, cropMarks: true }));
   const { marginPt: m, pageWidthPt: W, pageHeightPt: H } = geometry;

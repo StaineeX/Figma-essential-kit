@@ -19,9 +19,29 @@ const CROP_EXTRA_MM = 4.525;
 const CROP_STROKE_PT = 0.25;
 const CROP_HALO_PT = 1.25;
 
+// Tamanhos de corte mais usados (mm, retrato). A orientação segue a do frame.
+const PAGE_SIZES_MM = Object.freeze({
+  A3: [297, 420],
+  A4: [210, 297],
+  A5: [148, 210],
+  A6: [105, 148],
+  Letter: [215.9, 279.4],
+  card: [90, 50],
+  flyer: [100, 150],
+  folder: [99, 210],
+  square: [200, 200],
+  story: [108, 192],
+});
+
 function targetSizePt(widthPt, heightPt, settings) {
   if (settings.pageSize === 'reference') return [REFERENCE_FRAME_WIDTH_PT, REFERENCE_FRAME_HEIGHT_PT];
   if (settings.pageSize === 'custom') return [settings.customWidth * PT_PER_MM, settings.customHeight * PT_PER_MM];
+  const size = PAGE_SIZES_MM[settings.pageSize];
+  if (size) {
+    const [short, long] = [Math.min(...size), Math.max(...size)];
+    const [w, h] = widthPt > heightPt ? [long, short] : [short, long];
+    return [w * PT_PER_MM, h * PT_PER_MM];
+  }
   return [widthPt, heightPt];
 }
 
@@ -168,8 +188,10 @@ async function makePrintPdf(node, settings) {
     throw new Error('O frame precisa manter a proporção 20 × 7 cm para usar o tamanho de referência.');
   }
   // 1% de tolerância absorve arredondamento de mm digitado à mão.
-  if (settings.pageSize === 'custom' && Math.abs(geometry.contentScaleX / geometry.contentScaleY - 1) > 0.01) {
-    throw new Error(`O frame precisa ter a mesma proporção de ${settings.customWidth} × ${settings.customHeight} mm.`);
+  if (settings.pageSize !== 'frame' && settings.pageSize !== 'reference'
+    && Math.abs(geometry.contentScaleX / geometry.contentScaleY - 1) > 0.01) {
+    const mm = (pt) => Math.round(pt / PT_PER_MM * 10) / 10;
+    throw new Error(`O frame precisa ter a mesma proporção de ${mm(geometry.widthPt)} × ${mm(geometry.heightPt)} mm. Ajuste o frame ou use "Mesmo do frame".`);
   }
   const scale = 1;
   let printFrame;
