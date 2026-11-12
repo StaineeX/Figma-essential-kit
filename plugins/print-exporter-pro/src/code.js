@@ -216,6 +216,7 @@ async function makePrintPdf(node, settings) {
   let printFrame;
   let artwork;
   let bleedBackground;
+  let clip;
   try {
     printFrame = figma.createFrame();
     printFrame.name = '__print_exporter_pro_temp__';
@@ -224,17 +225,31 @@ async function makePrintPdf(node, settings) {
     printFrame.strokes = [];
     printFrame.clipsContent = false;
 
+    // Moldura no limite da sangria: recorta fundo e arte ali, não no corte, para
+    // elementos que passam da borda da prancheta entrarem na sangria.
+    const bleedPt = geometry.bleedPt * scale;
+    clip = figma.createFrame();
+    printFrame.appendChild(clip);
+    clip.name = 'Sangria';
+    clip.resize(geometry.widthPt * scale + 2 * bleedPt, geometry.heightPt * scale + 2 * bleedPt);
+    clip.x = (geometry.marginPt - geometry.bleedPt) * scale;
+    clip.y = (geometry.marginPt - geometry.bleedPt) * scale;
+    clip.fills = [];
+    clip.clipsContent = true;
+    const inClip = { ...geometry, marginPt: geometry.bleedPt };
+
     // O fundo é a primeira camada, por trás do conteúdo clonado.
     if (settings.bleed > 0) {
-      bleedBackground = appendBleedBackground(printFrame, node, geometry, scale, geometry.contentScale);
+      bleedBackground = appendBleedBackground(clip, node, inClip, scale, geometry.contentScale);
     }
 
     artwork = node.clone();
     if (geometry.contentScale !== 1) artwork.rescale(geometry.contentScale);
-    printFrame.appendChild(artwork);
-    artwork.x = geometry.marginPt * scale;
-    artwork.y = geometry.marginPt * scale;
+    clip.appendChild(artwork);
+    artwork.x = bleedPt;
+    artwork.y = bleedPt;
     artwork.rotation = 0;
+    artwork.clipsContent = false; // FRAME, COMPONENT e INSTANCE têm clipsContent
 
     if (settings.cropMarks) {
       // Contorno branco embaixo, linha preta em cima: legível sobre arte clara ou escura.
@@ -264,8 +279,9 @@ async function makePrintPdf(node, settings) {
     return await exportSheet(printFrame, geometry, settings);
   } finally {
     // Se a inserção do clone falhar, ele ainda pode estar na página original.
-    if (artwork && !artwork.removed && artwork.parent !== printFrame) artwork.remove();
-    if (bleedBackground && !bleedBackground.removed && bleedBackground.parent !== printFrame) bleedBackground.remove();
+    // Se a inserção falhar, clones podem ter ficado fora da folha temporária.
+    if (artwork && !artwork.removed && artwork.parent !== clip) artwork.remove();
+    if (bleedBackground && !bleedBackground.removed && bleedBackground.parent !== clip) bleedBackground.remove();
     if (printFrame && !printFrame.removed) printFrame.remove();
   }
 }

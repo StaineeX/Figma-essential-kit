@@ -203,13 +203,14 @@ test('keeps 5 mm physical bleed when exporting an oversized 20 x 7 frame', async
   };
   global.figma = {
     createFrame() {
-      createdFrame = {
+      const created = {
         appendChild(child) { child.parent = this; },
         resize(width, height) { this.resizeArgs = [width, height]; },
         exportAsync() { return new Uint8Array([1]); },
         remove() { this.removed = true; },
       };
-      return createdFrame;
+      createdFrame = createdFrame || created; // primeiro frame = folha
+      return created;
     },
     createRectangle() {
       return {

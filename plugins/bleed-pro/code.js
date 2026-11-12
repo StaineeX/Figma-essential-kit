@@ -216,12 +216,24 @@ async function prepare(source, config) {
     print.setPluginData('bleedpro.geometry', JSON.stringify({ sourceWidth: source.width, sourceHeight: source.height, bleed: b, margin: m, slug, dpi: config.dpi, basePpi: config.basePpi }));
     let warning = '';
     try {
+        // Elementos que passam da borda da prancheta entram na sangria: a arte não
+        // recorta mais no corte; quem recorta é uma moldura no limite da sangria.
+        const clip = figma.createFrame();
+        print.appendChild(clip);
+        clip.name = 'SANGRIA • RECORTE';
+        clip.resize(source.width + b.left + b.right, source.height + b.top + b.bottom);
+        clip.x = slug;
+        clip.y = slug;
+        clip.fills = [];
+        clip.clipsContent = true;
         const art = source.clone();
-        print.appendChild(art);
+        clip.appendChild(art);
         art.name = 'ARTE ORIGINAL • CÓPIA EDITÁVEL';
-        art.x = slug + b.left;
-        art.y = slug + b.top;
-        warning = await addEdge(print, source, slug, b);
+        art.x = b.left;
+        art.y = b.top;
+        art.clipsContent = false;
+        // Fundo estendido fica dentro da moldura (atrás da arte), recortado na sangria.
+        warning = await addEdge(clip, source, 0, b);
         if (config.marks)
             addCropMarks(print, slug, b, source.width, source.height);
         addGuides(print, source.width, source.height, slug, b, m);
