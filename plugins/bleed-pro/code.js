@@ -87,29 +87,6 @@ function rectangle(parent, name, x, y, w, h, stroke, fill) {
 function line(parent, name, x, y, w, h, color = { r: 0, g: 0, b: 0 }) {
     rectangle(parent, name, x, y, w, h, undefined, { type: 'SOLID', color });
 }
-function registration(parent, cx, cy, r) {
-    const black = { r: 0, g: 0, b: 0 };
-    const ring = figma.createEllipse();
-    parent.appendChild(ring);
-    ring.name = 'Marca de registro';
-    ring.resize(r * 2, r * 2);
-    ring.x = cx - r;
-    ring.y = cy - r;
-    ring.fills = [];
-    ring.strokes = [{ type: 'SOLID', color: black }];
-    ring.strokeWeight = .5;
-    const d = r * .5, dot = figma.createEllipse();
-    parent.appendChild(dot);
-    dot.name = 'Marca de registro (centro)';
-    dot.resize(d * 2, d * 2);
-    dot.x = cx - d;
-    dot.y = cy - d;
-    dot.fills = [{ type: 'SOLID', color: black }];
-    dot.strokes = [];
-    const arm = r * 1.4;
-    line(parent, 'Marca de registro (cruz)', cx - arm, cy - .25, arm * 2, .5);
-    line(parent, 'Marca de registro (cruz)', cx - .25, cy - arm, .5, arm * 2);
-}
 function addGuides(sheet, sw, sh, slug, b, m) {
     const g = figma.createFrame();
     sheet.appendChild(g);
@@ -138,7 +115,7 @@ function addCropMarks(sheet, slug, b, w, h) {
     c.fills = [];
     c.clipsContent = false;
     // Marcas encostam no canto do corte (da borda da folha até o corte, por cima
-    // da sangria): com espaço entre marca e arte o sensor/gráfica não alinha.
+    // da sangria), igual ao PDF de referência da gráfica.
     const tx = slug + b.left, ty = slug + b.top, rx = tx + w, by = ty + h;
     const W = sheet.width, H = sheet.height;
     for (const [lw, color] of [[1.25, { r: 1, g: 1, b: 1 }], [.5, { r: 0, g: 0, b: 0 }]]) {
@@ -151,11 +128,6 @@ function addCropMarks(sheet, slug, b, w, h) {
             line(c, 'Marca direita', rx, y - lw / 2, W - rx, lw, color);
         }
     }
-    // Marcas de registro (alvo) no meio de cada lado, fora da sangria: alinham as
-    // chapas do offset, obrigatórias em arte com borda branca/sem fundo.
-    const r = slug * .35;
-    for (const [cx, cy] of [[W / 2, slug / 2], [W / 2, H - slug / 2], [slug / 2, H / 2], [W - slug / 2, H / 2]])
-        registration(c, cx, cy, r);
     c.locked = true;
     c.setPluginData(MARKS, '1');
 }

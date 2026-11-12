@@ -7,7 +7,6 @@ const {
   makePrintPdf,
   printGeometry,
   cropMarkSegments,
-  registrationMarks,
   normalizeSettings,
   planExports,
   safeFileName,
@@ -149,15 +148,6 @@ test('crop marks run from the trim corner to the page edge, over the artwork', (
   assert.deepEqual(marks[7], [[m + 100, m + 50], [m + 100, H]]);
 });
 
-test('registration marks sit centred on each side, outside the bleed', () => {
-  const geometry = printGeometry(100, 50, normalizeSettings({ bleed: 5, cropMarks: true }));
-  const { radius, centers } = registrationMarks(geometry);
-  const slug = geometry.marginPt - geometry.bleedPt;
-  assert.equal(centers.length, 4);
-  assert.ok(radius > 0 && radius * 2 <= slug);
-  assert.deepEqual(centers[0], [geometry.pageWidthPt / 2, slug / 2]);
-});
-
 test('keeps 5 mm physical bleed when exporting an oversized 20 x 7 frame', async () => {
   let createdFrame;
   const artwork = {
@@ -187,11 +177,7 @@ test('keeps 5 mm physical bleed when exporting an oversized 20 x 7 frame', async
         resize() {},
         remove() { this.removed = true; },
       };
-    },
-    createEllipse() {
-      return { resize() {} };
-    },
-  };
+    },  };
 
   try {
     await makePrintPdf(node, normalizeSettings({ pageSize: 'reference', bleed: 5, cropMarks: true }));
