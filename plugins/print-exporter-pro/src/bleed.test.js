@@ -139,3 +139,18 @@ test('elementos que passam da borda entram na sangria; recorte fica no limite da
   assert.equal(art.clipsContent, false, 'arte não recorta mais no corte');
   assert.equal(sheet().clipsContent, false);
 });
+
+test('cópia do Bleed Pro é exportada como está, sem guias e na medida certa', async () => {
+  const guides = { name: 'SANGRIA • NÃO EDITAR', visible: true };
+  const calls = [];
+  const copy = {
+    type: 'FRAME', width: 960, height: 480, children: [guides],
+    exportAsync(options) { calls.push({ options, guidesVisible: guides.visible }); return new Uint8Array([1]); },
+  };
+  const result = await makePrintPdf(copy, normalizeSettings({ bleed: 5, cropMarks: true }));
+  assert.equal(result.raster, true);
+  close(result.widthPt, 720, '960 px (96 px/pol) = 720 pt = 10 pol');
+  assert.equal(calls[0].guidesVisible, false, 'guias escondidas na exportação');
+  close(calls[0].options.constraint.value, 300 / 96, '300 dpi');
+  assert.equal(guides.visible, true, 'guias voltam depois');
+});

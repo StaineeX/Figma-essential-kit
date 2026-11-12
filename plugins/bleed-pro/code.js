@@ -324,6 +324,9 @@ async function apply(config) {
 }
 async function exportPrints(config) {
     checkConfig(config);
+    // Exportar já cria/atualiza a cópia com sangria (fundo esticado, marcas) a
+    // partir da arte atual: um clique só, sempre com a versão mais recente.
+    await apply(config);
     const targets = prints(config.scope).slice(0, 20);
     if (!targets.length)
         throw new Error('Nenhuma cópia preparada encontrada. Crie a sangria primeiro.');

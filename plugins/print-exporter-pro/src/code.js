@@ -193,7 +193,40 @@ async function exportSheet(printFrame, geometry, settings) {
   return { raster: true, bytes, widthPt: geometry.pageWidthPt, heightPt: geometry.pageHeightPt };
 }
 
+// Cópia criada pelo Bleed Pro (contorno vermelho): já tem sangria esticada e
+// marcas. Exporta como está, sem as guias, convertendo 96 px/pol para pt.
+const BLEED_PRO_GUIDES = 'SANGRIA • NÃO EDITAR';
+
+function isBleedProCopy(node) {
+  return Boolean(node && node.type === 'FRAME' && Array.isArray(node.children)
+    && node.children.some((child) => child.name === BLEED_PRO_GUIDES));
+}
+
+async function exportBleedProCopy(node, settings) {
+  const guides = node.children.filter((child) => child.name === BLEED_PRO_GUIDES && child.visible !== false);
+  guides.forEach((guide) => { guide.visible = false; });
+  try {
+    const widthPt = Number(node.width) * FIGMA_PX_TO_PT;
+    const heightPt = Number(node.height) * FIGMA_PX_TO_PT;
+    if (settings.quality === 'raster') {
+      const scale = rasterScale(widthPt, heightPt, settings.dpi) * FIGMA_PX_TO_PT;
+      const bytes = await node.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
+      return { raster: true, bytes, widthPt, heightPt };
+    }
+    const copy = node.clone();
+    try {
+      copy.rescale(FIGMA_PX_TO_PT);
+      return await copy.exportAsync({ format: 'PDF' });
+    } finally {
+      copy.remove();
+    }
+  } finally {
+    guides.forEach((guide) => { guide.visible = true; });
+  }
+}
+
 async function makePrintPdf(node, settings) {
+  if (isBleedProCopy(node)) return exportBleedProCopy(node, settings);
   if (settings.bleed === 0 && !settings.cropMarks && settings.quality !== 'raster') {
     return node.exportAsync({ format: 'PDF' });
   }
