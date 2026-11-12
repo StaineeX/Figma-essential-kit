@@ -53,7 +53,17 @@ function sources(scope) {
             if (node.type !== 'FRAME')
                 continue;
             if (node.getPluginData(KIND) === '1') {
-                const id = node.getPluginData(OWN);
+                // Cópia de folder: OWN = "spread:id1,id2" -> volta para as pranchetas originais.
+                const own = node.getPluginData(OWN);
+                if (own.startsWith('spread:')) {
+                    for (const sid of own.slice(7).split(',')) {
+                        const f = figma.currentPage.findOne(n => n.id === sid);
+                        if (f && f.type === 'FRAME' && !result.includes(f))
+                            result.push(f);
+                    }
+                    continue;
+                }
+                const id = own;
                 const found = figma.currentPage.findOne(n => n.id === id);
                 if (found && found.type === 'FRAME' && !result.includes(found))
                     result.push(found);
@@ -72,8 +82,29 @@ function prints(scope) {
     const ids = new Set(figma.currentPage.selection.map(n => n.id));
     return all.filter(node => ids.has(node.id) || ids.has(node.getPluginData(OWN)));
 }
-function existing(source) {
-    return figma.currentPage.children.find((n) => n.type === 'FRAME' && n.getPluginData(KIND) === '1' && n.getPluginData(OWN) === source.id);
+// Folder: cópias das pranchetas lado a lado (posição relativa do canvas) num
+// frame temporário. Quem chama remove depois; as originais não mudam.
+function combineFrames(frames) {
+    const boxes = frames.map(f => ({ f, x: f.absoluteTransform[0][2], y: f.absoluteTransform[1][2] }));
+    const minX = Math.min(...boxes.map(b => b.x)), minY = Math.min(...boxes.map(b => b.y));
+    const maxX = Math.max(...boxes.map(b => b.x + b.f.width)), maxY = Math.max(...boxes.map(b => b.y + b.f.height));
+    const spread = figma.createFrame();
+    spread.name = boxes.slice().sort((a, b) => a.x - b.x || a.y - b.y).map(b => b.f.name).join(' + ');
+    spread.resize(maxX - minX, maxY - minY);
+    spread.fills = [];
+    spread.clipsContent = true;
+    spread.x = minX;
+    spread.y = minY;
+    for (const b of boxes) {
+        const copy = b.f.clone();
+        spread.appendChild(copy);
+        copy.x = b.x - minX;
+        copy.y = b.y - minY;
+    }
+    return spread;
+}
+function existing(id) {
+    return figma.currentPage.children.find((n) => n.type === 'FRAME' && n.getPluginData(KIND) === '1' && n.getPluginData(OWN) === id);
 }
 function rectangle(parent, name, x, y, w, h, stroke, fill) {
     const r = figma.createRectangle();
@@ -200,7 +231,7 @@ function pageAbs(node) {
     const t = node.absoluteTransform;
     return { x: t[0][2], y: t[1][2] };
 }
-async function prepare(source, config) {
+async function prepare(source, config, ownId = source.id) {
     const a = source.absoluteTransform;
     if (Math.abs(a[0][1]) > .001 || Math.abs(a[1][0]) > .001)
         throw new Error('Pranchetas giradas precisam ser colocadas sem rotação antes da sangria.');
@@ -212,7 +243,7 @@ async function prepare(source, config) {
     const sheetH = source.height + b.top + b.bottom + slug * 2;
     if (sheetW > 18000 || sheetH > 18000 || sheetW * sheetH > 70000000)
         throw new Error('Dimensões excedem o limite seguro de 70 megapixels.');
-    const previous = existing(source);
+    const previous = existing(ownId);
     const place = pageAbs(source);
     const print = figma.createFrame();
     print.name = 'IMPRESSÃO • ' + source.name;
@@ -223,7 +254,7 @@ async function prepare(source, config) {
     print.x = previous ? previous.x : place.x + source.width + 90;
     print.y = previous ? previous.y : place.y;
     print.setPluginData(KIND, '1');
-    print.setPluginData(OWN, source.id);
+    print.setPluginData(OWN, ownId);
     print.setPluginData('bleedpro.config', JSON.stringify(config));
     // "API" entre plugins: shared plugin data é lido por qualquer plugin
     // (o Print Exporter Pro usa isto para exportar a cópia como está).
@@ -332,7 +363,23 @@ async function apply(config) {
         throw new Error('Selecione uma ou mais pranchetas (Frame), ou use Todas da página.');
     const created = [];
     const errors = [];
-    for (let i = 0; i < frames.length; i++) {
+    if (config.combine && frames.length > 1) {
+        const key = 'spread:' + frames.map(f => f.id).sort().join(',');
+        const spread = combineFrames(frames);
+        emit('progress', 'Preparando folder: ' + spread.name);
+        try {
+            const res = await prepare(spread, config, key);
+            created.push(res.node);
+            emit('item', '• ' + spread.name + ': ' + res.warning);
+        }
+        catch (e) {
+            errors.push(spread.name + ': ' + (e instanceof Error ? e.message : String(e)));
+        }
+        finally {
+            spread.remove();
+        }
+    }
+    else for (let i = 0; i < frames.length; i++) {
         emit('progress', 'Preparando ' + (i + 1) + ' de ' + frames.length + ': ' + frames[i].name);
         try {
             const res = await prepare(frames[i], config);

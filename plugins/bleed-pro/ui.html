@@ -97,6 +97,7 @@
           <div class="field"><label for="format">Formato</label><select id="format" class="control"><option value="PDF" selected>PDF</option><option value="PNG">PNG</option></select></div>
           <div class="field"><label for="marks">Marcas de corte</label><div class="toggle"><span class="hint">Adicionar marcas na cópia</span><input id="marks" type="checkbox" checked aria-label="Marcas de corte"></div></div>
           <div class="field"><label for="slugColor">Cor fora da sangria</label><div class="toggle"><span class="hint">Área das marcas (padrão branco)</span><input id="slugColor" type="color" value="#ffffff" aria-label="Cor fora da sangria"></div></div>
+          <div class="field"><label for="combine">Juntar seleção numa cópia</label><div class="toggle"><span class="hint">Folder: capa-verso + capa-frente lado a lado</span><input id="combine" type="checkbox" aria-label="Juntar seleção numa cópia"></div></div>
         </div>
         <p class="hint">PDF rasterizado em RGB, com tamanho físico e caixas de corte/sangria. PNG usa os pixels calculados; verifique exigências CMYK com a gráfica.</p>
       </section>
@@ -131,6 +132,7 @@
     format:$('format').value==='PNG'?'PNG':'PDF',
     marks:Boolean($('marks').checked),
     slugColor:$('slugColor').value||'#ffffff',
+    combine:Boolean($('combine').checked),
     outer:{top:num('ot'),right:num('or'),bottom:num('ob'),left:num('ol')},
     inner:{top:num('it'),right:num('ir'),bottom:num('ib'),left:num('il')}
   })

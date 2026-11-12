@@ -5,7 +5,7 @@ const MARKS = 'bleedpro.marks'
 const GUIDE_NAME = 'SANGRIA • NÃO EDITAR'
 type Unit = 'mm'|'cm'|'px'
 type Sides = { top:number; right:number; bottom:number; left:number }
-type Config = { unit:Unit; dpi:number; basePpi:number; outer:Sides; inner:Sides; scope:'selection'|'page'; marks:boolean; format:'PDF'|'PNG'; slugColor?:string }
+type Config = { unit:Unit; dpi:number; basePpi:number; outer:Sides; inner:Sides; scope:'selection'|'page'; marks:boolean; format:'PDF'|'PNG'; slugColor?:string; combine?:boolean }
 type UiMessage =
   | {type:'resize';height:number}
   | {type:'apply';config:Config}
@@ -53,7 +53,16 @@ function sources(scope:'selection'|'page'):FrameNode[] {
     for(const node of selected) {
       if(node.type!=='FRAME') continue
       if(node.getPluginData(KIND)==='1') {
-        const id=node.getPluginData(OWN)
+        // Cópia de folder: OWN = "spread:id1,id2" -> volta para as pranchetas originais.
+        const own=node.getPluginData(OWN)
+        if(own.startsWith('spread:')) {
+          for(const sid of own.slice(7).split(',')) {
+            const f=figma.currentPage.findOne(n=>n.id===sid)
+            if(f&&f.type==='FRAME'&&!result.includes(f)) result.push(f)
+          }
+          continue
+        }
+        const id=own
         const found=figma.currentPage.findOne(n=>n.id===id)
         if(found&&found.type==='FRAME'&&!result.includes(found)) result.push(found)
       } else if(!result.includes(node)) result.push(node)
@@ -68,8 +77,22 @@ function prints(scope:'selection'|'page'):FrameNode[] {
   const ids=new Set(figma.currentPage.selection.map(n=>n.id))
   return all.filter(node=>ids.has(node.id)||ids.has(node.getPluginData(OWN)))
 }
-function existing(source:FrameNode):FrameNode|undefined {
-  return figma.currentPage.children.find((n):n is FrameNode=>n.type==='FRAME'&&n.getPluginData(KIND)==='1'&&n.getPluginData(OWN)===source.id)
+// Folder: cópias das pranchetas lado a lado (posição relativa do canvas) num
+// frame temporário. Quem chama remove depois; as originais não mudam.
+function combineFrames(frames:FrameNode[]):FrameNode {
+  const boxes=frames.map(f=>({f,x:f.absoluteTransform[0][2],y:f.absoluteTransform[1][2]}))
+  const minX=Math.min(...boxes.map(b=>b.x)),minY=Math.min(...boxes.map(b=>b.y))
+  const maxX=Math.max(...boxes.map(b=>b.x+b.f.width)),maxY=Math.max(...boxes.map(b=>b.y+b.f.height))
+  const spread=figma.createFrame()
+  spread.name=boxes.slice().sort((a,b)=>a.x-b.x||a.y-b.y).map(b=>b.f.name).join(' + ')
+  spread.resize(maxX-minX,maxY-minY)
+  spread.fills=[];spread.clipsContent=true
+  spread.x=minX;spread.y=minY
+  for(const b of boxes){const copy=b.f.clone();spread.appendChild(copy);copy.x=b.x-minX;copy.y=b.y-minY}
+  return spread
+}
+function existing(id:string):FrameNode|undefined {
+  return figma.currentPage.children.find((n):n is FrameNode=>n.type==='FRAME'&&n.getPluginData(KIND)==='1'&&n.getPluginData(OWN)===id)
 }
 function rectangle(parent:FrameNode,name:string,x:number,y:number,w:number,h:number,stroke?:RGB,fill?:Paint):RectangleNode {
   const r=figma.createRectangle()
@@ -174,7 +197,7 @@ function pageAbs(node:FrameNode):{x:number;y:number} {
   const t=node.absoluteTransform
   return {x:t[0][2],y:t[1][2]}
 }
-async function prepare(source:FrameNode,config:Config):Promise<{node:FrameNode;warning:string}> {
+async function prepare(source:FrameNode,config:Config,ownId:string=source.id):Promise<{node:FrameNode;warning:string}> {
   const a=source.absoluteTransform
   if(Math.abs(a[0][1])>.001||Math.abs(a[1][0])>.001) throw new Error('Pranchetas giradas precisam ser colocadas sem rotação antes da sangria.')
   const b=toSides(config.outer,config),m=toSides(config.inner,config)
@@ -183,7 +206,7 @@ async function prepare(source:FrameNode,config:Config):Promise<{node:FrameNode;w
   const sheetW=source.width+b.left+b.right+slug*2
   const sheetH=source.height+b.top+b.bottom+slug*2
   if(sheetW>18000||sheetH>18000||sheetW*sheetH>70000000) throw new Error('Dimensões excedem o limite seguro de 70 megapixels.')
-  const previous=existing(source)
+  const previous=existing(ownId)
   const place=pageAbs(source)
   const print=figma.createFrame()
   print.name='IMPRESSÃO • '+source.name
@@ -194,7 +217,7 @@ async function prepare(source:FrameNode,config:Config):Promise<{node:FrameNode;w
   print.x=previous?previous.x:place.x+source.width+90
   print.y=previous?previous.y:place.y
   print.setPluginData(KIND,'1')
-  print.setPluginData(OWN,source.id)
+  print.setPluginData(OWN,ownId)
   print.setPluginData('bleedpro.config',JSON.stringify(config))
   // "API" entre plugins: shared plugin data é lido por qualquer plugin
   // (o Print Exporter Pro usa isto para exportar a cópia como está).
@@ -285,7 +308,18 @@ async function apply(config:Config):Promise<void>{
   if(!frames.length) throw new Error('Selecione uma ou mais pranchetas (Frame), ou use Todas da página.')
   const created:FrameNode[]=[]
   const errors:string[]=[]
-  for(let i=0;i<frames.length;i++){
+  if(config.combine&&frames.length>1) {
+    const key='spread:'+frames.map(f=>f.id).sort().join(',')
+    const spread=combineFrames(frames)
+    emit('progress','Preparando folder: '+spread.name)
+    try {
+      const res=await prepare(spread,config,key)
+      created.push(res.node)
+      emit('item','• '+spread.name+': '+res.warning)
+    }catch(e){errors.push(spread.name+': '+(e instanceof Error?e.message:String(e)))}
+    finally{spread.remove()}
+  }
+  else for(let i=0;i<frames.length;i++){
     emit('progress','Preparando '+(i+1)+' de '+frames.length+': '+frames[i].name)
     try {
       const res=await prepare(frames[i],config)
