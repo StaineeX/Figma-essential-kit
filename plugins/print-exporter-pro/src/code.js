@@ -174,8 +174,24 @@ function appendBleedBackground(parent, node, geometry, scale, contentScale = 1) 
 
 // Exporta um frame temporário do Figma, com a arte clonada e as marcas.
 // O clone e seu wrapper são apagados no finally; nunca altera a arte original.
+// O PDF do Figma rasteriza efeitos, misturas e máscaras a 1x; como aqui
+// 1 unidade = 1 pt, isso dá ~72 dpi. Em "300 dpi" a folha inteira é exportada
+// em PNG nessa resolução e a interface monta o PDF no tamanho físico exato.
+const MAX_RASTER_SIDE_PX = 12000;
+
+function rasterScale(pageWidthPt, pageHeightPt, dpi) {
+  return Math.min(dpi / 72, MAX_RASTER_SIDE_PX / Math.max(pageWidthPt, pageHeightPt));
+}
+
+async function exportSheet(printFrame, geometry, settings) {
+  if (settings.quality !== 'raster') return printFrame.exportAsync({ format: 'PDF' });
+  const scale = rasterScale(geometry.pageWidthPt, geometry.pageHeightPt, settings.dpi);
+  const bytes = await printFrame.exportAsync({ format: 'PNG', constraint: { type: 'SCALE', value: scale } });
+  return { raster: true, bytes, widthPt: geometry.pageWidthPt, heightPt: geometry.pageHeightPt };
+}
+
 async function makePrintPdf(node, settings) {
-  if (settings.bleed === 0 && !settings.cropMarks) {
+  if (settings.bleed === 0 && !settings.cropMarks && settings.quality !== 'raster') {
     return node.exportAsync({ format: 'PDF' });
   }
 
@@ -242,7 +258,7 @@ async function makePrintPdf(node, settings) {
       }
     }
 
-    return await printFrame.exportAsync({ format: 'PDF' });
+    return await exportSheet(printFrame, geometry, settings);
   } finally {
     // Se a inserção do clone falhar, ele ainda pode estar na página original.
     if (artwork && !artwork.removed && artwork.parent !== printFrame) artwork.remove();
@@ -264,6 +280,8 @@ function normalizeSettings(input = {}) {
     preset: typeof source.preset === 'string' ? source.preset : DEFAULT_SETTINGS.preset,
     pageSize: typeof source.pageSize === 'string' ? source.pageSize : DEFAULT_SETTINGS.pageSize,
     bleed,
+    quality: source.quality === 'vector' ? 'vector' : 'raster',
+    dpi: [150, 300, 600].includes(Number(source.dpi)) ? Number(source.dpi) : 300,
     customWidth: Number(source.customWidth),
     customHeight: Number(source.customHeight),
     cropMarks: source.cropMarks === undefined ? DEFAULT_SETTINGS.cropMarks : Boolean(source.cropMarks),
@@ -355,8 +373,8 @@ async function exportPlannedFrames(nodes, plan, exportNode, onProgress = () => {
     const item = plan[index];
     const node = nodes.find((candidate) => candidate.id === item.nodeId);
     try {
-      const bytes = await exportNode(node);
-      files.push({ name: item.fileName, bytes });
+      const result = await exportNode(node);
+      files.push(result && result.raster ? { name: item.fileName, ...result } : { name: item.fileName, bytes: result });
     } catch (error) {
       failed.push({ name: item.fileName, message: error instanceof Error ? error.message : String(error) });
     }

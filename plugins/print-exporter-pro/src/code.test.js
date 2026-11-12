@@ -150,6 +150,32 @@ test('standard sizes follow the frame orientation and reject other proportions',
   );
 });
 
+test('exports the sheet as a 300 dpi PNG by default, vector PDF only on request', async () => {
+  const calls = [];
+  global.figma = {
+    createFrame() {
+      return {
+        appendChild(child) { child.parent = this; },
+        resize(w, h) { this.width = w; this.height = h; },
+        exportAsync(options) { calls.push(options); return new Uint8Array([1]); },
+        remove() {},
+      };
+    },
+    createRectangle() { return { resize() {}, remove() {} }; },
+  };
+  const node = { type: 'FRAME', width: 72, height: 72, fills: [], children: [], clone: () => ({ remove() {} }) };
+  try {
+    const raster = await makePrintPdf(node, normalizeSettings({ bleed: 0, cropMarks: true }));
+    assert.equal(raster.raster, true);
+    assert.equal(calls[0].format, 'PNG');
+    assert.ok(Math.abs(calls[0].constraint.value - 300 / 72) < 1e-9);
+    await makePrintPdf(node, normalizeSettings({ bleed: 0, cropMarks: true, quality: 'vector' }));
+    assert.equal(calls[1].format, 'PDF');
+  } finally {
+    delete global.figma;
+  }
+});
+
 test('crop marks run from the trim corner to the page edge, over the artwork', () => {
   const geometry = printGeometry(100, 50, normalizeSettings({ bleed: 5, cropMarks: true }));
   const { marginPt: m, pageWidthPt: W, pageHeightPt: H } = geometry;

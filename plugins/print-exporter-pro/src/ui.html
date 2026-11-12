@@ -308,6 +308,15 @@
             </div>
           </div>
           <div class="field">
+            <label class="field-label" for="quality"><span>Qualidade das imagens</span><small>resolução</small></label>
+            <select id="quality">
+              <option value="raster:300">300 dpi · gráfica (recomendado)</option>
+              <option value="raster:600">600 dpi · máxima</option>
+              <option value="raster:150">150 dpi · prova/arquivo leve</option>
+              <option value="vector:300">Vetorial · PDF do Figma (efeitos a 72 dpi)</option>
+            </select>
+          </div>
+          <div class="field">
             <label class="field-label" for="pageSize"><span>Tamanho da página</span><small>saída</small></label>
             <select id="pageSize">
               <option value="frame">Mesmo do frame</option>
@@ -409,6 +418,8 @@
           scope: state.scope,
           colorMode: $('.mode-button[aria-pressed="true"]')?.dataset.color || state.settings.colorMode,
           pageSize: $('#pageSize').value,
+          quality: $('#quality').value.split(':')[0],
+          dpi: Number($('#quality').value.split(':')[1]),
           customWidth: $('#customWidth').value,
           customHeight: $('#customHeight').value,
           bleed: $('#bleed').value,
@@ -420,6 +431,8 @@
         state.settings = { ...state.settings, ...settings };
         $$('.mode-button').forEach((button) => { button.setAttribute('aria-pressed', String(button.dataset.color === state.settings.colorMode)); });
         $('#pageSize').value = state.settings.pageSize || 'frame';
+        $('#quality').value = `${state.settings.quality || 'raster'}:${state.settings.dpi || 300}`;
+        if (!$('#quality').value) $('#quality').value = 'raster:300';
         $('#customWidth').value = state.settings.customWidth ?? '';
         $('#customHeight').value = state.settings.customHeight ?? '';
         $('#customSize').hidden = state.settings.pageSize !== 'custom';
@@ -536,7 +549,7 @@
         renderSummary();
       }));
       $$('.preset').forEach((button) => button.addEventListener('click', () => applyPreset(button.dataset.preset)));
-      ['#pageSize', '#customWidth', '#customHeight', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
+      ['#pageSize', '#quality', '#customWidth', '#customHeight', '#bleed', '#cropMarks'].forEach((selector) => $(selector).addEventListener('input', () => {
         state.settings = { ...readSettings(), preset: 'custom' };
         saveSettings();
         clearMessage();
@@ -579,15 +592,83 @@
           renderSummary();
         }
         if (message.type === 'EXPORT_RESULT') {
-          (message.files || []).forEach(downloadFile);
+          handleExportResult(message);
+        }
+      };
+
+      // PNG em alta resolução -> JPEG 95% sobre branco -> PDF de 1 página no tamanho físico.
+      async function rasterToPdf(file) {
+        const png = toBytes(file.bytes);
+        const bitmap = await createImageBitmap(new Blob([png], { type: 'image/png' }));
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap, 0, 0);
+        const jpegBlob = await new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Imagem grande demais para converter.')), 'image/jpeg', 0.95));
+        const jpeg = new Uint8Array(await jpegBlob.arrayBuffer());
+        return buildJpegPdf(jpeg, canvas.width, canvas.height, file.widthPt, file.heightPt);
+      }
+
+      function buildJpegPdf(jpeg, pxW, pxH, ptW, ptH) {
+        const enc = new TextEncoder();
+        const f = (n) => n.toFixed(3);
+        const content = `q\n${f(ptW)} 0 0 ${f(ptH)} 0 0 cm\n/Im0 Do\nQ\n`;
+        const objects = [
+          enc.encode('<< /Type /Catalog /Pages 2 0 R >>'),
+          enc.encode('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'),
+          enc.encode(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${f(ptW)} ${f(ptH)}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>`),
+          enc.encode(`<< /Length ${content.length} >>\nstream\n${content}endstream`),
+          concat([enc.encode(`<< /Type /XObject /Subtype /Image /Width ${pxW} /Height ${pxH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`), jpeg, enc.encode('\nendstream')]),
+        ];
+        const parts = [enc.encode('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n')];
+        const offsets = [];
+        let position = parts[0].length;
+        objects.forEach((object, index) => {
+          offsets.push(position);
+          const entry = concat([enc.encode(`${index + 1} 0 obj\n`), object, enc.encode('\nendobj\n')]);
+          parts.push(entry);
+          position += entry.length;
+        });
+        let trailer = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+        offsets.forEach((offset) => { trailer += `${String(offset).padStart(10, '0')} 00000 n \n`; });
+        trailer += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${position}\n%%EOF`;
+        parts.push(enc.encode(trailer));
+        return concat(parts);
+      }
+
+      function concat(parts) {
+        const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+        let at = 0;
+        for (const p of parts) { out.set(p, at); at += p.length; }
+        return out;
+      }
+
+      function toBytes(raw) {
+        return raw instanceof Uint8Array ? raw : raw instanceof ArrayBuffer ? new Uint8Array(raw) : new Uint8Array(Array.isArray(raw) ? raw : raw?.data || Object.values(raw || {}));
+      }
+
+      async function handleExportResult(message) {
+          const failed = [...(message.failed || [])];
+          const files = [];
+          for (const file of message.files || []) {
+            try {
+              files.push(file.raster ? { name: file.name, bytes: await rasterToPdf(file) } : file);
+            } catch (error) {
+              failed.push({ name: file.name, message: error instanceof Error ? error.message : String(error) });
+            }
+          }
+          message = { ...message, files, failed };
+          files.forEach(downloadFile);
           setBusy(false);
           setStatus(message.failed?.length ? 'Concluído com alertas' : 'Exportado', message.failed?.length ? 'error' : 'success');
           const successText = `${message.files?.length || 0} PDF(s) baixado(s).` + (Number(message.settings?.bleed) > 0 ? " Verifique se imagens e elementos alcançam a sangria; ela não pode ser inventada a partir de um frame já cortado." : "");
           const failureText = message.failed?.length ? ` ${message.failed.map((item) => `${escapeHtml(item.name)}: ${escapeHtml(item.message)}`).join(' · ')}` : '';
           showMessage(message.failed?.length ? 'warning' : 'success', `<p>${successText}${failureText}</p>`);
           renderSummary();
-        }
-      };
+      }
 
       state.settings = loadSettings();
       state.scope = state.settings.scope || 'selection';
