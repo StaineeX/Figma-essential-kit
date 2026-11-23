@@ -13,6 +13,7 @@ Coleção de plugins locais para agilizar produção gráfica, tratamento de ima
 | **FigAI Pranchetas** | Cria e organiza pranchetas de forma rápida no Figma. |
 | **FigAI** | Reúne recursos assistidos por IA para apoiar tarefas de criação. |
 | **Print Exporter Pro** | Exporta arquivos para impressão com configurações de corte e sangria. |
+| **QR Code Nativo** | Gera QR codes com formas nativas (sem SVG) em três formatações: quadrado, pontos e arredondado. |
 
 ## Instalação geral
 
@@ -38,12 +39,13 @@ plugins/
 ├── removedor-de-fundo/
 ├── figai/
 ├── figai-pranchetas/
-└── print-exporter-pro/
+├── print-exporter-pro/
+└── qr-code-nativo/
 ```
 
 ## Observações
 
-- Os cinco plugins listados acima foram encontrados e copiados para este repositório.
+- Os plugins listados acima estão neste repositório.
 - Cada pasta informa limitações e dependências confirmadas pelo código.
 - Faça uma cópia do arquivo antes de exportações importantes.
 
