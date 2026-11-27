@@ -40,3 +40,13 @@ test('offers the most used print sizes', () => {
 test('starts with the primary action disabled until frames are available', () => {
   assert.match(html, /id="exportButton"[^>]*disabled/);
 });
+
+test('print presets export vector PDF by default', () => {
+  assert.match(html, /printer: \{[^}]*quality: 'vector'/);
+  assert.match(html, /press: \{[^}]*quality: 'vector'/);
+  assert.match(html, /const DEFAULTS = \{[^}]*quality: 'vector'/);
+});
+
+test('warns about layers that become images', () => {
+  assert.match(html, /rasterized/);
+});

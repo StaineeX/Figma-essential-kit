@@ -181,6 +181,7 @@
       .empty-state { padding: 18px 10px; color: var(--muted); text-align: center; }
       .empty-state strong { display: block; margin-bottom: 4px; color: var(--muted-strong); }
 
+      .raster-warn { color: #b45309; }
       .preset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
       .preset {
         padding: 9px 8px;
@@ -311,10 +312,10 @@
           <div class="field">
             <label class="field-label" for="quality"><span>Qualidade das imagens</span><small>resolução</small></label>
             <select id="quality">
-              <option value="raster:300">300 dpi · gráfica (recomendado)</option>
-              <option value="raster:600">600 dpi · máxima</option>
-              <option value="raster:150">150 dpi · prova/arquivo leve</option>
-              <option value="vector:300">Vetorial · PDF do Figma (efeitos a 72 dpi)</option>
+              <option value="vector:300">Vetorial · textos em vetor (recomendado)</option>
+              <option value="raster:300">Imagem 300 dpi · tudo vira imagem</option>
+              <option value="raster:600">Imagem 600 dpi · tudo vira imagem</option>
+              <option value="raster:150">Imagem 150 dpi · prova/arquivo leve</option>
             </select>
           </div>
           <div class="field">
@@ -384,15 +385,15 @@
     </main>
 
     <script>
-      const STORAGE_KEY = 'print-exporter-pro.settings';
+      const STORAGE_KEY = 'print-exporter-pro.settings.v2'; // v2: gráfica em vetor por padrão
       const PRESETS = {
         screen: { preset: 'screen', colorMode: 'RGB', pageSize: 'frame', bleed: 0, cropMarks: false },
-        press: { preset: 'press', colorMode: 'CMYK', pageSize: 'frame', bleed: 3, cropMarks: true },
-        printer: { preset: 'printer', colorMode: 'CMYK', pageSize: 'frame', bleed: 5, cropMarks: true },
+        press: { preset: 'press', colorMode: 'CMYK', pageSize: 'frame', bleed: 3, cropMarks: true, quality: 'vector', dpi: 300 },
+        printer: { preset: 'printer', colorMode: 'CMYK', pageSize: 'frame', bleed: 5, cropMarks: true, quality: 'vector', dpi: 300 },
         // Adesivo: página = medida final, arte até a borda, sem marcas (a plotter corta pela borda).
         sticker: { preset: 'sticker', colorMode: 'CMYK', pageSize: 'frame', bleed: 0, cropMarks: false },
       };
-      const DEFAULTS = { scope: 'selection', colorMode: 'CMYK', preset: 'printer', pageSize: 'frame', bleed: 5, cropMarks: true };
+      const DEFAULTS = { scope: 'selection', colorMode: 'CMYK', preset: 'printer', pageSize: 'frame', bleed: 5, cropMarks: true, quality: 'vector', dpi: 300 };
       const state = { scope: 'selection', frames: [], settings: { ...DEFAULTS }, busy: false };
       const $ = (selector) => document.querySelector(selector);
       const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -480,9 +481,18 @@
         list.innerHTML = state.frames.map((frame, index) => `
           <div class="frame-row">
             <div class="frame-icon">${String(index + 1).padStart(2, '0')}</div>
-            <div class="frame-meta"><div class="frame-name" title="${escapeHtml(frame.name)}">${escapeHtml(frame.name)}</div><div class="frame-size">${formatSize(frame)} · ${frame.type || 'FRAME'}</div></div>
+            <div class="frame-meta"><div class="frame-name" title="${escapeHtml(frame.name)}">${escapeHtml(frame.name)}</div><div class="frame-size">${formatSize(frame)} · ${frame.type || 'FRAME'}</div>${rasterWarning(frame)}</div>
           </div>
         `).join('');
+      }
+
+      // Camadas com desfoque viram imagem a 72 dpi no PDF vetorial do Figma.
+      function rasterWarning(frame) {
+        const rasterized = Array.isArray(frame.rasterized) ? frame.rasterized : [];
+        if (!rasterized.length) return '<div class="frame-size">Textos e formas em vetor</div>';
+        const texts = rasterized.reduce((sum, layer) => sum + (layer.texts || 0), 0);
+        const names = rasterized.slice(0, 3).map((layer) => escapeHtml(layer.name)).join(', ');
+        return `<div class="frame-size raster-warn" title="${names}">⚠ ${rasterized.length} camada(s) com desfoque viram imagem${texts ? ` · ${texts} texto(s) dentro` : ''}: ${names}</div>`;
       }
 
       function escapeHtml(value) {
