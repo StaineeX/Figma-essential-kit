@@ -229,3 +229,20 @@ test('keeps 5 mm physical bleed when exporting an oversized 20 x 7 frame', async
   assert.ok(Math.abs(createdFrame.resizeArgs[1] - 252.42519685039372) < 0.001);
   assert.ok(Math.abs(artwork.scale - 0.75) < 0.001);
 });
+
+test('lists layers that Figma rasterizes in PDF because of effects', () => {
+  const { findRasterizedLayers } = require('./code.js');
+  const frame = {
+    children: [
+      { name: 'Card vidro', type: 'FRAME', effects: [{ type: 'BACKGROUND_BLUR', visible: true }], children: [
+        { name: 'Texto do card', type: 'TEXT', effects: [] },
+      ] },
+      { name: 'Titulo', type: 'TEXT', effects: [{ type: 'DROP_SHADOW', visible: false }] },
+      { name: 'Brilho', type: 'ELLIPSE', effects: [{ type: 'LAYER_BLUR' }] },
+    ],
+  };
+  assert.deepEqual(findRasterizedLayers(frame), [
+    { name: 'Card vidro', effect: 'BACKGROUND_BLUR', texts: 1 },
+    { name: 'Brilho', effect: 'LAYER_BLUR', texts: 0 },
+  ]);
+});
