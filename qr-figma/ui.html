@@ -1,0 +1,51 @@
+<style>
+  body { font: 12px Inter, system-ui, sans-serif; margin: 12px; color: #333; }
+  label { display: block; margin: 10px 0 4px; font-weight: 600; }
+  textarea, select, input[type=number] { width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font: inherit; }
+  textarea { height: 64px; resize: vertical; }
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+  .styles { display: flex; gap: 6px; }
+  .styles label { flex: 1; margin: 0; font-weight: 400; border: 1px solid #ccc; border-radius: 4px; padding: 6px; text-align: center; cursor: pointer; }
+  .styles input { display: none; }
+  .styles input:checked + span { font-weight: 700; color: #0d99ff; }
+  button { width: 100%; margin-top: 14px; padding: 8px; border: 0; border-radius: 6px; background: #0d99ff; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+</style>
+
+<label for="text">Texto ou URL</label>
+<textarea id="text">https://figma.com</textarea>
+
+<label>Formatação</label>
+<div class="styles">
+  <label><input type="radio" name="style" value="quadrado" checked><span>Quadrado</span></label>
+  <label><input type="radio" name="style" value="pontos"><span>Pontos</span></label>
+  <label><input type="radio" name="style" value="arredondado"><span>Arredondado</span></label>
+</div>
+
+<div class="row">
+  <div><label for="size">Tamanho (px)</label><input id="size" type="number" value="300" min="50" max="4000"></div>
+  <div><label for="ecl">Correção</label>
+    <select id="ecl"><option>L</option><option selected>M</option><option>Q</option><option>H</option></select>
+  </div>
+</div>
+
+<div class="row">
+  <div><label for="fg">Cor</label><input id="fg" type="color" value="#000000"></div>
+  <div><label for="bg">Fundo</label><input id="bg" type="color" value="#ffffff"></div>
+  <div><label><input id="transparent" type="checkbox"> Sem fundo</label></div>
+</div>
+
+<button id="create">Gerar QR code</button>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('create').onclick = () => parent.postMessage({ pluginMessage: {
+    type: 'create',
+    text: $('text').value.trim(),
+    style: document.querySelector('input[name=style]:checked').value,
+    size: Math.max(50, Number($('size').value) || 300),
+    ecl: $('ecl').value,
+    fg: $('fg').value,
+    bg: $('transparent').checked ? null : $('bg').value,
+  } }, '*');
+</script>
