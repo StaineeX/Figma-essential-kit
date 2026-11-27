@@ -561,6 +561,30 @@ function combineFrames(nodes) {
   return spread;
 }
 
+// No PDF vetorial do Figma, textos e formas ficam em vetor, mas desfoques
+// viram imagem a 72 dpi (a camada inteira, com os textos dentro dela).
+const RASTER_EFFECTS = new Set(['LAYER_BLUR', 'BACKGROUND_BLUR']);
+
+function countTexts(node) {
+  if (!node || !Array.isArray(node.children)) return 0;
+  return node.children.reduce(
+    (sum, child) => sum + (child.type === 'TEXT' ? 1 : 0) + countTexts(child), 0);
+}
+
+function findRasterizedLayers(node, found = []) {
+  for (const child of (node && Array.isArray(node.children) ? node.children : [])) {
+    if (child.visible === false) continue;
+    const effect = (Array.isArray(child.effects) ? child.effects : [])
+      .find((e) => e.visible !== false && RASTER_EFFECTS.has(e.type));
+    if (effect) {
+      found.push({ name: child.name || 'Sem nome', effect: effect.type, texts: countTexts(child) });
+    } else {
+      findRasterizedLayers(child, found);
+    }
+  }
+  return found;
+}
+
 function frameSummary(node) {
   return {
     id: node.id,
@@ -568,6 +592,7 @@ function frameSummary(node) {
     type: node.type,
     width: Math.round(Number(node.width) || 0),
     height: Math.round(Number(node.height) || 0),
+    rasterized: findRasterizedLayers(node),
   };
 }
 
@@ -676,6 +701,7 @@ function startPlugin() {
 
 if (typeof module !== 'undefined') {
   module.exports = {
+    findRasterizedLayers,
     collectTopLevelFrames,
     combineFrames,
     printGeometry,
